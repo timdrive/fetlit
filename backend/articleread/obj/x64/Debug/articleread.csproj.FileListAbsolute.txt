@@ -8,3 +8,8 @@ D:\Work\fetlit\source\articleread\obj\x64\Debug\articleread.exe
 D:\Work\fetlit\source\articleread\obj\x64\Debug\articleread.pdb
 D:\Work\fetlit\source\articleread\bin\x64\Debug\articleread.exe
 D:\Work\fetlit\source\articleread\bin\x64\Debug\articleread.pdb
+D:\Work\fetlit\source\backend\articleread\bin\x64\Debug\articleread.exe.config
+D:\Work\fetlit\source\backend\articleread\obj\x64\Debug\articleread.exe
+D:\Work\fetlit\source\backend\articleread\obj\x64\Debug\articleread.pdb
+D:\Work\fetlit\source\backend\articleread\bin\x64\Debug\articleread.exe
+D:\Work\fetlit\source\backend\articleread\bin\x64\Debug\articleread.pdb

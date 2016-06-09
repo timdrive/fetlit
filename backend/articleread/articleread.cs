@@ -11,6 +11,7 @@ using System.IO;
 using System.Xml;
 using System.Text;
 using System.Web;
+using System.Net;
 using System.Web.Security;
 using System.Security.Cryptography;
 
@@ -21,7 +22,7 @@ namespace CgiInCSharp
         [DllImport("kernel32", SetLastError = true)]
         static extern int SetConsoleMode(int hConsoleHandle, int dwMode);
 
-        private static int max_post_length = 1000000; // max length of posted text in bytes
+        private static int max_post_length = 5000000; // max length of posted text in bytes
         private static int max_con_timeout = 100; // max timeout of the connection milliseconds
         private static int max_num_stories = 10; // max number of stories per category to display
 
@@ -1155,9 +1156,9 @@ namespace CgiInCSharp
             Raw = Raw.Replace("%29", ")"); Raw = Raw.Replace("%25", "%"); Raw = Raw.Replace("%2F", "/");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("%3F", "?"); Raw = Raw.Replace("%3B", ";"); Raw = Raw.Replace("%3A", ":");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("%5D", "]"); Raw = Raw.Replace("%5B", "["); Raw = Raw.Replace("%7D", "}");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-            Raw = Raw.Replace("%7B", "{"); Raw = Raw.Replace("%7C", "|"); Raw = Raw.Replace("%3D", "=");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            Raw = Raw.Replace("%7B", "{"); Raw = Raw.Replace("%7C", "|"); //Raw = Raw.Replace("%3D", "=");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("%2B", "+"); Raw = Raw.Replace("%7E", "~"); Raw = Raw.Replace("%60", "`");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-            Raw = Raw.Replace("&amp;", "&"); Raw = Raw.Replace("&#38;", "&"); Raw = Raw.Replace("%26", "^");    //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            Raw = Raw.Replace("&amp;", "&"); Raw = Raw.Replace("&#38;", "&"); //Raw = Raw.Replace("%26", "^");    //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
 
             /*
             
@@ -1210,6 +1211,17 @@ namespace CgiInCSharp
 
             return Clean;
         }  // End of sanitize() method.
+
+        public static string PostSanitize(string Raw)
+        {
+
+            if (Raw == null) return "";
+            Raw = Raw.Replace("%3D", "=");
+            Raw = Raw.Replace("%26", "&");
+
+            return Raw;
+
+        }  // End of PostSanitize() method.
 
         private static void GatherPostThread()
         {
@@ -1282,6 +1294,8 @@ namespace CgiInCSharp
                 string[] kvPair = param.Split('=');
                 string key = kvPair[0];
                 string value = HttpUtility.UrlDecode(kvPair[1]);
+                //string value = WebUtility.UrlDecode(kvPair[1]);
+                //string value = WebUtility.HtmlDecode(kvPair[1]);
                 pStory.Add(key, value);
             }
 
@@ -1493,17 +1507,23 @@ namespace CgiInCSharp
             catch
             (Exception ex)
             {
-                htmlErrorTOC += ">>> Important: You must agree to the TOC to post Your Content.";
+                htmlErrorTOC += "important :: You must agree to the TOC to post Your Content";
             }
 
             Console.Write(getHtmlHead(htmlStylesheet));
 
-            //Console.Write("<h2>{0}</h2>", ">>> Important: Your story is shorter than 10,000 words");
-            if (!checkTOC) Console.Write("<h2>{0}</h2>", htmlErrorTOC);
-            //Console.Write("<h2>{0}</h2>", ">>> Important: Your author penname already exist, please enter Your author's secret to use this name.");
-            //Console.Write("<h2>{0}</h2>", ">>> Important: Your story secret and Your author secret don't match.");
-            //Console.Write("<h2>{0}</h2>", htmlStoryPostBody);
 
+            if (!checkTOC)
+            {
+                Console.Write("<div class=\"tiles clearfix\">");
+                Console.Write("<div class=\"w4 h3\">");
+                Console.Write("<a href=\"#preview_story_button\"><span></span></a>");
+                Console.Write("<h1 id=\"story_beginning\">:: {0} ::</h1>", htmlErrorTOC);
+                Console.Write("</div>");
+                Console.Write("</div>");
+                Console.Write("&nbsp;");
+            }
+            
             Console.Write("<table>");
             Console.Write("<tbody>");
             Console.Write("<tr>");
@@ -1602,7 +1622,7 @@ namespace CgiInCSharp
             Console.Write("I agree to the above:");
             Console.Write("<input type=\"checkbox\" name=\"submit_agree_checkbox\" value=\"1\" {0}><br/><br/>", htmlAgreeTOC);
 
-            Console.Write("<button type=\"submit\" name=\"preview_story_button\" value=\"preview_story\">Preview Your Story</button><br/><br/>");
+            Console.Write("<button id=\"preview_story_button\" type=\"submit\" name=\"preview_story_button\" value=\"preview_story\">Preview Your Story</button><br/><br/>");
 
             Console.Write("For detailed information and guidelines on story submission, please read out FAQ.<br/><br/>");
 
