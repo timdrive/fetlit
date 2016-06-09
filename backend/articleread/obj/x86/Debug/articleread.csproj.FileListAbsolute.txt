@@ -1,0 +1,7 @@
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x86\Debug\articleread.exe.config
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x86\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x86\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x86\Debug\Oracle.DataAccess.dll
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\x86\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\x86\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\x86\Debug\articleread.csprojResolveAssemblyReference.cache

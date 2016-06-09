@@ -1,0 +1,10 @@
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x64\Debug\articleread.exe.config
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x64\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\x64\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\x64\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\x64\Debug\articleread.pdb
+D:\Work\fetlit\source\articleread\bin\x64\Debug\articleread.exe.config
+D:\Work\fetlit\source\articleread\obj\x64\Debug\articleread.exe
+D:\Work\fetlit\source\articleread\obj\x64\Debug\articleread.pdb
+D:\Work\fetlit\source\articleread\bin\x64\Debug\articleread.exe
+D:\Work\fetlit\source\articleread\bin\x64\Debug\articleread.pdb

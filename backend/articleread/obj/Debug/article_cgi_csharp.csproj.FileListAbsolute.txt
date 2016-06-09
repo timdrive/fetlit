@@ -1,0 +1,6 @@
+D:\Work\fetlit\CGI_CS\CGI_CSharp_Source\article_cgi_csharp\bin\Debug\article_cgi_csharp.exe
+D:\Work\fetlit\CGI_CS\CGI_CSharp_Source\article_cgi_csharp\bin\Debug\article_cgi_csharp.pdb
+D:\Work\fetlit\CGI_CS\CGI_CSharp_Source\article_cgi_csharp\obj\Debug\article_cgi_csharp.exe
+D:\Work\fetlit\CGI_CS\CGI_CSharp_Source\article_cgi_csharp\obj\Debug\article_cgi_csharp.pdb
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\obj\Debug\article_cgi_csharp.exe
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\obj\Debug\article_cgi_csharp.pdb

@@ -1,0 +1,11 @@
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\bin\Debug\articleread.exe
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\bin\Debug\articleread.pdb
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\obj\Debug\articleread.exe
+D:\Work\fetlit\CGI_CS\fetlitcgi_read\article_cgi_csharp\obj\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\Debug\articleread.exe
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\Debug\articleread.pdb
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\Debug\articleread.exe.config
+D:\Work\fetlit\backend\fetlit_articleread\articleread\bin\Debug\Oracle.DataAccess.dll
+D:\Work\fetlit\backend\fetlit_articleread\articleread\obj\Debug\articleread.csprojResolveAssemblyReference.cache
