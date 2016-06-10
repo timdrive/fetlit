@@ -195,7 +195,9 @@ namespace CgiInCSharp
             else return "✪✪✪✪✪";
             */
 
-            if (rating > 0.00 && rating <= 1.00) return "&#9733;";
+            if (rating >= 0.00 && rating < 1.00) return "&#10032;&#10032;&#10032;&#10032;&#10032;";
+
+            if (rating == 1.00) return "&#9733;";
 
             else if (rating > 1.00 && rating <= 1.25) return "&#9733;&#9734;";
             else if (rating > 1.25 && rating <= 1.50) return "&#9733;&#10029;";
@@ -324,6 +326,48 @@ namespace CgiInCSharp
             else
                 // the submitted author secret doesn't match the existing secret for the author 
                 return "wrongstorysecret";
+        }
+
+        private static string getStoryID(string author_name, string story_name, string story_secret)
+        {
+            // this piece will attempt to retrieve the author secret based on the author name
+            // if no author secret was found it will generate a new author secret
+            // if the retrieved author secret does not match the provided author secret it will return "noauthorsecretfound"
+            Random random = new Random();
+            string story_id = "0";
+            using (OracleConnection oracleConnection = new OracleConnection())
+            {
+                try
+                {
+                    oracleConnection.ConnectionString = Cgi.connectionString;
+                    oracleConnection.Open();
+                    OracleCommand command = oracleConnection.CreateCommand();
+                    command.CommandText = "select max(story_id) from stories where user_alias = :author_name and story_name = :story_name and story_secret = :story_secret";
+                    command.Parameters.Add(new OracleParameter("author_name", author_name));
+                    command.Parameters.Add(new OracleParameter("story_name", story_name));
+                    command.Parameters.Add(new OracleParameter("story_secret", story_secret));
+                    OracleDataReader oracleDataReader = command.ExecuteReader();
+                    while (oracleDataReader.Read())
+                    {
+                            story_id = Convert.ToString(oracleDataReader["story_id"]);
+                    }
+                    oracleDataReader.Close();
+                    command.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    Cgi.logError(((object)ex).ToString());
+                    throw new Exception(((object)ex).ToString());
+                }
+                finally
+                {
+                    oracleConnection.Close();
+                    oracleConnection.Dispose();
+                }
+            }
+
+            return story_id;
         }
 
         private static int getNewCommentID()
@@ -510,7 +554,7 @@ namespace CgiInCSharp
         {
             string story_list = "";
 
-            string sql2 = "select * from (select story_id,  user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall, story_words, read_counter, (select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where story_category_01 = '{0}' {1}) where ROWNUM <= {2}";
+            string sql2 = "select * from (select story_id,  user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall, story_rating_plot, story_rating_grammar, story_rating_style, story_words, read_counter, (select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where story_category_01 = '{0}' {1}) where ROWNUM <= {2}";
 
             string fob   = " AND created_date >= TO_DATE(SYSDATE,'DD-MON-YYYY') order by created_date desc";
             string day   = " AND created_date BETWEEN TO_DATE(SYSDATE-2,'DD-MON-YYYY') AND TO_DATE(SYSDATE,'DD-MON-YYYY') order by created_date";
@@ -543,6 +587,9 @@ namespace CgiInCSharp
                 string story_id = Convert.ToString(oracleDataReader2["story_id"]);
                 string created_date = Convert.ToString(oracleDataReader2["created_date"]);
                 string story_rating_overall = Convert.ToString(oracleDataReader2["story_rating_overall"]);
+                string story_rating_plot = Convert.ToString(oracleDataReader2["story_rating_plot"]);
+                string story_rating_grammar = Convert.ToString(oracleDataReader2["story_rating_grammar"]);
+                string story_rating_style = Convert.ToString(oracleDataReader2["story_rating_style"]);
                 string story_summary = Convert.ToString(oracleDataReader2["story_summary"]);
                 string story_words = Convert.ToString(oracleDataReader2["story_words"]);
                 string read_counter = Convert.ToString(oracleDataReader2["read_counter"]);
@@ -552,14 +599,17 @@ namespace CgiInCSharp
                 story_list += "<td>";
                 story_list += "<p class=\"i1\">"+getStarRating(Convert.ToDouble(story_rating_overall))+"</p>"; // hollow ☆ (&#9734;) semi-solid ✭ (&#10029;) almost-solid ✮ (&#10030;) solid ★ (&#9733;) hollow ✰ (& #10032;)
 
+
+                string hot_beverage = "";
+                string solid_heart = "";
+
                 if (Convert.ToDouble(story_rating_overall) > 4.0 && Convert.ToDouble(read_counter) > 10)
-                {
-                    story_list += "<p class=\"i1\">&#9749;<span class=\"si1b\">&nbsp&nbsp"; // hot beverage
-                }
-                else
-                {
-                    story_list += "<p class=\"i1\"><span class=\"si1b\">"; // hot beverage
-                }
+                    hot_beverage = "&#9749;&nbsp";
+
+                if ((Convert.ToDouble(story_rating_plot) + Convert.ToDouble(story_rating_grammar) + Convert.ToDouble(story_rating_style)) / 3 >= 4.66)
+                    solid_heart = "&#9829;&nbsp";
+
+                story_list += "<p class=\"i1\">" + hot_beverage + solid_heart + "<span class=\"si1b\">"; // hot beverage
 
                 story_list += String.Format("{0:0.000}", Convert.ToDouble(story_rating_overall));
                 story_list += "</span></p><p class=\"i3\">";
@@ -831,10 +881,10 @@ namespace CgiInCSharp
                     command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
                     command.Parameters.Add(new OracleParameter("story_category_02", htmlStoryCategory));
                     command.Parameters.Add(new OracleParameter("story_category_03", htmlStoryCategory));
-                    command.Parameters.Add(new OracleParameter("story_rating_overall", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_plot", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_grammar", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_style", "5"));
+                    command.Parameters.Add(new OracleParameter("story_rating_overall", "0"));
+                    command.Parameters.Add(new OracleParameter("story_rating_plot", "0"));
+                    command.Parameters.Add(new OracleParameter("story_rating_grammar", "0"));
+                    command.Parameters.Add(new OracleParameter("story_rating_style", "0"));
                     command.Parameters.Add(new OracleParameter("story_secret", htmlStorySecret));
 
                     oracleConnection.Open();
@@ -872,24 +922,7 @@ namespace CgiInCSharp
         private static bool updateStory(Dictionary<string, string> postedStory)
         {
 
-            string storycolumns =
-                "story_id, user_alias, user_secret, story_name," +
-                "story_line, story_copyright, story_summary, story_clob," +
-                "story_words, story_active, story_status, story_notes, story_language," +
-                "story_category_01, story_category_02, story_category_03," +
-                "story_rating_overall, story_rating_plot," +
-                "story_rating_grammar, story_rating_style," +
-                "story_secret, created_date, updated_date";
-
-            string storyparams =
-                ":story_id, :user_alias, :user_secret, :story_name," +
-                ":story_line, :story_copyright, :story_summary, EMPTY_CLOB()," +
-                ":story_words, :story_active, :story_status, :story_notes, :story_language," +
-                ":story_category_01, :story_category_02, :story_category_03," +
-                ":story_rating_overall, :story_rating_plot," +
-                ":story_rating_grammar, :story_rating_style," +
-                ":story_secret, SYSDATE, SYSDATE";
-
+            string story_id = postedStory["story_id"];
             string htmlStoryTitle = postedStory["title"];
             string htmlStoryAuthorName = postedStory["author"];
             string htmlStoryAuthorEmail = postedStory["email"];
@@ -903,10 +936,7 @@ namespace CgiInCSharp
             string htmlStoryLanguage = postedStory["language"];
             string htmlStoryKeywords = "love, kiss, hug";
 
-            int story_id = getNewStoryID();
-
-            //var insertstorysql = "insert into stories (" + storycolumns + ") values (" + storyparams + ")";
-            string updatestorysql = "update stories set story_clob = :story_clob where story_id = :story_id";
+            string updatestorysql = "update stories set story_line = :story_line, story_summary = :story_summary, story_language = :story_language, story_category_01 = :story_category_01, story_clob = :story_clob where story_id = :story_id";
 
             //Console.WriteLine(">>> About to open connection...");
 
@@ -916,44 +946,19 @@ namespace CgiInCSharp
                 try
                 {
 
-                    //Console.WriteLine(">>> command.Parameters.Add...");
-
                     // THE ADD ORDER MUST FOLLOW THE ORDER OF THE COLUMNS ABOVE UNLESS BindByName = true
-                    command.Parameters.Add(new OracleParameter("story_id", story_id));
-                    command.Parameters.Add(new OracleParameter("user_alias", htmlStoryAuthorName));
-                    command.Parameters.Add(new OracleParameter("user_secret", htmlStoryAuthorSecret));
-                    command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
-                    command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
-                    command.Parameters.Add(new OracleParameter("story_copyright", "Copyright (c) " + htmlStoryAuthorName));
-                    command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
-                    command.Parameters.Add(new OracleParameter("story_words", "10000"));
-                    command.Parameters.Add(new OracleParameter("story_active", "Y"));
-                    command.Parameters.Add(new OracleParameter("story_status", "A"));
-                    command.Parameters.Add(new OracleParameter("story_notes", "some notes"));
-                    command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
-                    command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
-                    command.Parameters.Add(new OracleParameter("story_category_02", htmlStoryCategory));
-                    command.Parameters.Add(new OracleParameter("story_category_03", htmlStoryCategory));
-                    command.Parameters.Add(new OracleParameter("story_rating_overall", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_plot", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_grammar", "5"));
-                    command.Parameters.Add(new OracleParameter("story_rating_style", "5"));
-                    command.Parameters.Add(new OracleParameter("story_secret", htmlStorySecret));
 
-                    oracleConnection.Open();
-
-                    command.ExecuteNonQuery();
-
-                    /* Portion to update the CLOB story */
-                    command.Parameters.Clear();
                     command.CommandText = updatestorysql;
 
                     command.Parameters.Add(new OracleParameter("story_id", story_id));
+                    command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
+                    command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
+                    command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
+                    command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
                     command.Parameters.Add("story_clob", OracleDbType.Clob, htmlStoryCleanBody, System.Data.ParameterDirection.Input);
 
+                    oracleConnection.Open();
                     command.ExecuteNonQuery();
-                    /* End portion to update the CLOB story */
-
                     command.Connection.Close();
                     command.Dispose();
                 }
@@ -1605,7 +1610,7 @@ namespace CgiInCSharp
             Console.Write("<textarea name=\"summary\" id=\"summary\" cols=\"100\" rows=\"10\" maxlength=\"1000\">{0}</textarea><br/><br/>", htmlStorySummary);
 
             Console.Write("Story text (at least about 10,000 words and at most about 200,000 words): <br/>");
-            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"2000000\">{0}</textarea><br/><br/>", htmlStoryCleanBody); // htmlStoryPostBody); //htmlStoryCleanBody);// htmlStoryRenderedBody);
+            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"5000000\">{0}</textarea><br/><br/>", htmlStoryCleanBody); // htmlStoryPostBody); //htmlStoryCleanBody);// htmlStoryRenderedBody);
 
             Console.Write("By posting Your Content on this public Platform,");
             Console.Write("You are granting fetlit a limited, royalty-free,<br/>");
@@ -1816,6 +1821,8 @@ namespace CgiInCSharp
 
                     string stored_or_new_author_secret = getUserSecret(htmlStoryAuthorName, htmlStoryAuthorSecret);
                     string stored_or_new_story_secret = getStorySecret(htmlStoryAuthorName, htmlStoryTitle, htmlStorySecret);
+                    string story_id = getStoryID(htmlStoryAuthorName, htmlStoryTitle, htmlStorySecret);
+                    postedStory.Add("story_id", story_id);
 
                     //Console.WriteLine(">>>>  " + stored_or_new_author_secret);
                     //Console.WriteLine(">>>>  " + stored_or_new_story_secret);
