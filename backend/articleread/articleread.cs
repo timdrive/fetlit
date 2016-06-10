@@ -342,7 +342,7 @@ namespace CgiInCSharp
                     oracleConnection.ConnectionString = Cgi.connectionString;
                     oracleConnection.Open();
                     OracleCommand command = oracleConnection.CreateCommand();
-                    command.CommandText = "select max(story_id) from stories where user_alias = :author_name and story_name = :story_name and story_secret = :story_secret";
+                    command.CommandText = "select max(story_id) as story_id from stories where user_alias = :author_name and story_name = :story_name and story_secret = :story_secret";
                     command.Parameters.Add(new OracleParameter("author_name", author_name));
                     command.Parameters.Add(new OracleParameter("story_name", story_name));
                     command.Parameters.Add(new OracleParameter("story_secret", story_secret));
@@ -1857,10 +1857,9 @@ namespace CgiInCSharp
                     else if (stored_or_new_author_secret.CompareTo(postedStory["asecret"]) == 0)
                     {
 
-                        if (stored_or_new_story_secret.CompareTo(postedStory["asecret"]) == 0)
+                        if (stored_or_new_story_secret.CompareTo(postedStory["ssecret"]) == 0)
                         {
-                            //updateStory(postedStory);
-                            insertStory(postedStory);
+                            updateStory(postedStory);
 
                             Console.Write(getHtmlHead("style.css"));
                             Console.Write("<div class=\"tiles clearfix\">");
@@ -1874,10 +1873,10 @@ namespace CgiInCSharp
                         }
                         else
                         {
-                            insertStory(postedStory);
-
                             postedStory.Remove("ssecret");
                             postedStory.Add("ssecret", stored_or_new_story_secret);
+
+                            insertStory(postedStory);
 
                             Console.Write(getHtmlHead("style.css"));
                             Console.Write("<div class=\"tiles clearfix\">");
@@ -1899,8 +1898,6 @@ namespace CgiInCSharp
                         postedStory.Add("asecret", stored_or_new_author_secret);
                         postedStory.Remove("ssecret");
                         postedStory.Add("ssecret", stored_or_new_story_secret);
-
-                        Console.WriteLine(">>>>  " + postedStory["asecret"]);
 
                         insertStory(postedStory);
 
