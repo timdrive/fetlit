@@ -628,11 +628,12 @@ namespace CgiInCSharp
                 //story_list += "</a>
                 story_list += "</h5></td>";
                 story_list += "<td>";
-                story_list += "<p class=\"i3\">" + story_words + "</p>";
+                story_list += String.Format("<p class=\"i3\">{0:###,###,###}</p>", Convert.ToDouble(story_words)); ;
                 story_list += "</td>";
                 story_list += "<td>";
                 story_list += "<p class=\"i2\">&#9993; <span class=\"si2b\">" + comment_counter + "</span></p>"; // letter-email
                 story_list += "<p class=\"i2\">&#8634; <span class=\"si2b\">" + read_counter + "</span></p>"; // reloads
+                story_list += "<p class=\"i2\"><span class=\"si2b\">I-" + story_id + "</span></p>"; // story id
                 story_list += "</td>";
                 story_list += "</tr>";         
                 
