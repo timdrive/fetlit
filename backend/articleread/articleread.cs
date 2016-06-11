@@ -28,8 +28,9 @@ namespace CgiInCSharp
 
         private static string newStoryHash = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(System.Web.Security.Membership.GeneratePassword(32, 0))).Replace("=", "").Replace("+", "").Replace("/", "");
 
-        private static string PostData;
+        //private static string PostData;
         private static int PostLength;
+        private static char[] chararray;// = new char[1];
 
         private static EventLog eventLogger = (EventLog)null;
         private static string DateTimeFormatterForLog = "HH:mm:ss.fff";
@@ -90,6 +91,14 @@ namespace CgiInCSharp
         private static void logError(string msg)
         {
             string str = "[" + DateTime.Now.ToString(Cgi.DateTimeFormatterForLog) + "] ERROR: " + msg;
+            TextWriter textWriter = (TextWriter)new StreamWriter(Cgi.logPath + "/ArticleReader_" + DateTime.Now.ToString(Cgi.DateFormatterForFileName) + ".log", true);
+            textWriter.WriteLine(str);
+            textWriter.Close();
+        }
+
+        private static void logError(string level, string msg)
+        {
+            string str = "[" + DateTime.Now.ToString(Cgi.DateTimeFormatterForLog) + "] " + level + ": " + msg;
             TextWriter textWriter = (TextWriter)new StreamWriter(Cgi.logPath + "/ArticleReader_" + DateTime.Now.ToString(Cgi.DateFormatterForFileName) + ".log", true);
             textWriter.WriteLine(str);
             textWriter.Close();
@@ -858,6 +867,8 @@ namespace CgiInCSharp
 
             //Console.WriteLine(">>> About to open connection...");
 
+            logError("INFO", "insertStory: Begin story insert...");
+
             using (OracleConnection oracleConnection = new OracleConnection(Cgi.connectionString))
             using (OracleCommand command = new OracleCommand(insertstorysql, oracleConnection) { BindByName = true } )
             {
@@ -892,6 +903,8 @@ namespace CgiInCSharp
 
                     command.ExecuteNonQuery();
 
+                    logError("INFO", "insertStory: End story insert... begin clob update...");
+
                     /* Portion to update the CLOB story */
                     command.Parameters.Clear();
                     command.CommandText = updatestorysql;
@@ -904,6 +917,9 @@ namespace CgiInCSharp
 
                     command.Connection.Close();
                     command.Dispose();
+
+                    logError("INFO", "insertStory: End clob update...");
+
                 }
                 catch (Exception ex)
                 {
@@ -1077,14 +1093,20 @@ namespace CgiInCSharp
                 ":HTTP_ACCEPT,:HTTP_ACCEPT_ENCODING,:HTTP_ACCEPT_LANGUAGE," +
                 ":CONTENT_TYPE, :fingerprint_hash";
 
-            string newcommentsql = "insert into ratings ("+columns+") values ("+parameters+", SYSDATE, SYSDATE)";
+            string newratingsql = "insert into ratings ("+columns+") values ("+parameters+", SYSDATE, SYSDATE)";
+
+            string updatestoryratingsql = "UPDATE STORIES SET story_rating_overall = " +
+                "(SELECT ROUND(AVG(RATING_BY_USER),3) AS AVERAGE_RATING FROM ( " +
+                "SELECT story_id, AVG(rating_overall) AS RATING_BY_USER, fingerprint_hash FROM ratings " +
+                "WHERE STORY_ID = " + postedAction["story_id"] + " GROUP BY story_id,fingerprint_hash)) " +
+                "WHERE STORY_ID = " + postedAction["story_id"];
 
             if (getFingerprintCheck(fingerprint_hash) <= 0)
             {
                 int rating_id = getNewRatingID();
 
                 using (OracleConnection oracleConnection = new OracleConnection(Cgi.connectionString))
-                using (OracleCommand command = new OracleCommand(newcommentsql, oracleConnection) { BindByName = true })
+                using (OracleCommand command = new OracleCommand(newratingsql, oracleConnection) { BindByName = true })
                 {
                     try
                     {
@@ -1118,6 +1140,12 @@ namespace CgiInCSharp
 
                         command.ExecuteNonQuery();
 
+                        /* Portion to update the rating of the story */
+                        command.Parameters.Clear();
+                        command.CommandText = updatestoryratingsql;
+                        command.ExecuteNonQuery();
+                        /* End portion to update the rating of the story */
+
                         command.Connection.Close();
                         command.Dispose();
                     }
@@ -1144,7 +1172,9 @@ namespace CgiInCSharp
         public static string Sanitize(string Raw)
         {
             string Clean = "";
-            
+
+            logError("INFO", "Sanitize: Begin story sanitize...");
+
             if (Raw == null) return Clean;
             Raw = Raw.Replace("%22", "\"");                                                                     //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("%E2%80%94", "—");                                                                //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
@@ -1165,6 +1195,8 @@ namespace CgiInCSharp
             Raw = Raw.Replace("%7B", "{"); Raw = Raw.Replace("%7C", "|"); //Raw = Raw.Replace("%3D", "=");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("%2B", "+"); Raw = Raw.Replace("%7E", "~"); Raw = Raw.Replace("%60", "`");        //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
             Raw = Raw.Replace("&amp;", "&"); Raw = Raw.Replace("&#38;", "&"); //Raw = Raw.Replace("%26", "^");    //Console.WriteLine("22 >>> " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+
+            logError("INFO", "Sanitize: End story sanitize...");
 
             /*
             
@@ -1231,14 +1263,21 @@ namespace CgiInCSharp
 
         private static void GatherPostThread()
         {
-            if (PostLength > max_post_length) PostLength = max_post_length;  // Max length for POST data for security.
+            if (PostLength > max_post_length) { PostLength = max_post_length; }  // Max length for POST data for security.
+
+            Array.Resize(ref chararray, PostLength);
+
+            int i = 0;
             for (; PostLength > 0; PostLength--)
-                PostData += Convert.ToChar(Console.Read()).ToString();
+            {
+                //PostData += Convert.ToChar(Console.Read()).ToString();
+                chararray[i++] = Convert.ToChar(Console.Read());
+            }
         }
 
         private static Dictionary<string, string> postedStoryParse()
         {
-            //Console.WriteLine(">>> Begin reading: " + DateTime.Now.ToString(Cgi.DateTimeFormatterForLog));
+            logError("INFO", "postedStoryParse: Begin reading...");
 
             Dictionary<string, string> pStory = new Dictionary<string, string>();
 
@@ -1271,41 +1310,57 @@ namespace CgiInCSharp
 
             //////
 
-
-
             int LengthCompare = PostLength;
 
             if (PostLength > 0) PostThread.Start();
 
+            logError("INFO", "postedStoryParse: Begin streaming...");
+
             while (PostLength > 0)
             {
                 Thread.Sleep(max_con_timeout);
+                logError("INFO", "postedStoryParse: Streaming... " + PostLength +" ... " + LengthCompare);
                 if (PostLength < LengthCompare)
                     LengthCompare = PostLength;
                 else
                 {
-                    PostData += "Data or connection problem. PostLength = " + PostLength + ", LengthCompare = " + LengthCompare;
+                    logError("INFO", "postedStoryParse: Streaming data or connection problem. PostLength " + PostLength + ", LengthCompare " + LengthCompare);
                     break;
                 }
             }
 
+            logError("INFO", "postedStoryParse: End streaming... begin adding to dictionary... ");
+
+            string PostData = new string(chararray);
+
             pStory.Add("raw_story", PostData);
+
+            logError("INFO", "postedStoryParse: End adding to dictionary... ");
 
             PostData = Sanitize(PostData);
 
+            logError("INFO", "postedStoryParse: Begin splitting &... ");
+
             string[] postDataSplit = PostData.Split('&');
+
+            logError("INFO", "postedStoryParse: End splitting &... ");
 
             foreach (string param in postDataSplit)
             {
+                logError("INFO", "postedStoryParse: Begin splitting...");
+
                 string[] kvPair = param.Split('=');
                 string key = kvPair[0];
+
+                logError("INFO", "postedStoryParse: Begin decoding for " + key + "...");
+
                 string value = HttpUtility.UrlDecode(kvPair[1]);
                 //string value = WebUtility.UrlDecode(kvPair[1]);
                 //string value = WebUtility.HtmlDecode(kvPair[1]);
                 pStory.Add(key, value);
             }
 
-            //Console.WriteLine(">>> End reading: " + DateTime.Now.ToString(Cgi.DateTimeFormatterForLog));
+            logError("INFO", "postedStoryParse: End reading...");
 
             return pStory;
         }
@@ -1406,18 +1461,18 @@ namespace CgiInCSharp
             Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
             Console.Write("<h2>");
 
-            Console.Write("Author pen name (42 characters max): <br/>");
-            Console.Write("<INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" placeholder=\"{0}\"/><br/><br/>", htmlStoryAuthorName);
+            Console.Write("Author pen name (required, 42 characters max): <br/>");
+            Console.Write("<INPUT required type=\"text\" NAME=\"author\" SIZE=\"100\" minlength=\"5\" maxlength=\"42\" placeholder=\"{0}\"/><br/><br/>", htmlStoryAuthorName);
             Console.Write("Author email (100 characters max, to receive your secrets, not required): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"email\" SIZE=\"100\" maxlength=\"100\" placeholder=\"{0}\"/><br/><br/>", htmlStoryAuthorEmail);
             Console.Write("Author secret (if any, 4 digits, to use your existing name, not required for new authors): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"asecret\" size=\"100\" maxlength=\"4\"  placeholder=\"{0}\"/><br/><br/>", htmlStoryAuthorSecret);
             Console.Write("Story secret (if any, 16 digits, to update/overwrite/delete your existing story, not required for new stories): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"ssecret\"  size=\"100\" maxlength=\"16\" placeholder=\"{0}\"/><br/><br/>", htmlStorySecret);
-            Console.Write("Story title (60 characters max): <br/>");
-            Console.Write("<INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTitle);
-            Console.Write("Story tagline (90 characters max): <br/>");
-            Console.Write("<INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTagline);
+            Console.Write("Story title (required, 60 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"title\" SIZE=\"100\" minlength=\"5\" maxlength=\"60\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTitle);
+            Console.Write("Story tagline (required, 90 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" minlength=\"5\" maxlength=\"90\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTagline);
 
             Console.Write("Story category: <select name=\"category\" id=\"category\">");
             foreach (KeyValuePair<string, string> story_category in dictCategories)
@@ -1498,7 +1553,9 @@ namespace CgiInCSharp
             string htmlErrorTOC = "";
             //string html = "";
 
+            logError("INFO", "previewStory: Begin story render...");
             string htmlStoryRenderedBody = renderStory( htmlStoryCleanBody );
+            logError("INFO", "previewStory: End story render...");
 
             bool checkTOC = false;
 
@@ -1515,6 +1572,8 @@ namespace CgiInCSharp
             {
                 htmlErrorTOC += "important :: You must agree to the TOC to post Your Content";
             }
+
+            logError("INFO", "previewStory: Begin HTML render...");
 
             Console.Write(getHtmlHead(htmlStylesheet));
 
@@ -1578,18 +1637,18 @@ namespace CgiInCSharp
             Console.Write("<br/><br/>");
             if (checkTOC) Console.Write("<button type=\"submit\" name=\"submit_story_button\" value=\"submit_story\">Submit Your Story</button><br/><br/>");
 
-            Console.Write("Author pen name (42 characters max): <br/>");
-            Console.Write("<INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" value=\"{0}\"/><br/><br/>", htmlStoryAuthorName);
+            Console.Write("Author pen name (required, 42 characters max): <br/>");
+            Console.Write("<INPUT required type=\"text\" NAME=\"author\" SIZE=\"100\" minlength=\"5\" maxlength=\"42\" value=\"{0}\"/><br/><br/>", htmlStoryAuthorName);
             Console.Write("Author email (90 characters max, to receive your secrets, not required): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"email\" SIZE=\"100\" maxlength=\"90\" value=\"{0}\"/><br/><br/>", htmlStoryAuthorEmail);
             Console.Write("Author secret (if any, 4 digits, to use your existing name, not required for new authors): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"asecret\" size=\"100\" maxlength=\"4\"  value=\"{0}\"/><br/><br/>", htmlStoryAuthorSecret);
             Console.Write("Story secret (if any, 16 digits, to update/overwrite/delete your existing story, not required for new stories): <br/>");
             Console.Write("<INPUT TYPE=\"text\" NAME=\"ssecret\"  size=\"100\" maxlength=\"16\" value=\"{0}\"/><br/><br/>", htmlStorySecret);
-            Console.Write("Story title (60 characters max): <br/>");
-            Console.Write("<INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" value=\"{0}\"/><br/><br/>", htmlStoryTitle);
-            Console.Write("Story tagline (100 characters max): <br/>");
-            Console.Write("<INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"100\" value=\"{0}\"/><br/><br/>", htmlStoryTagline);
+            Console.Write("Story title (required, 60 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"title\" SIZE=\"100\" minlength=\"5\" maxlength=\"60\" value=\"{0}\"/><br/><br/>", htmlStoryTitle);
+            Console.Write("Story tagline (required, 100 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" minlength=\"5\" maxlength=\"100\" value=\"{0}\"/><br/><br/>", htmlStoryTagline);
 
             Console.Write("Story category: <select name=\"category\" id=\"category\">");
             foreach (KeyValuePair<string, string> story_category in dictCategories)
@@ -1636,6 +1695,8 @@ namespace CgiInCSharp
             Console.Write("</div>");
             Console.Write("</body></html>");
 
+            logError("INFO", "previewStory: End HTML render...");
+
             return true;
         }
 
@@ -1648,9 +1709,12 @@ namespace CgiInCSharp
             string htmlStoryAuthorName = "";
             string htmlStoryTagline = "";
             string htmlStorySummary = "";
+            string htmlStoryRating = "";
             string htmlStoryCleanBody = "";
 
             Dictionary<string, string> pStory = new Dictionary<string, string>();
+
+            logError("INFO", "readStory: Begin story db read...");
 
             using (OracleConnection oracleConnection = new OracleConnection())
             {
@@ -1676,7 +1740,8 @@ namespace CgiInCSharp
                         htmlStoryAuthorName = Convert.ToString(oracleDataReader["user_alias"]);
                         htmlStoryTagline = Convert.ToString(oracleDataReader["story_line"]);
                         htmlStorySummary = Convert.ToString(oracleDataReader["story_summary"]);
-                        htmlStoryCleanBody = (string) story_clob.Value;
+                        htmlStoryRating = Convert.ToString(oracleDataReader["story_rating_overall"]);
+                        htmlStoryCleanBody = (string)story_clob.Value;
                     }
                     oracleDataReader.Close();
                     command.Dispose();
@@ -1693,13 +1758,23 @@ namespace CgiInCSharp
                 }
             }
 
+            logError("INFO", "readStory: End story db read...");
+
             incStoryReadCounter(story_id);
 
+            logError("INFO", "readStory: Begin story render...");
+
             string htmlStoryRenderedBody = renderStory(htmlStoryCleanBody);
+
+            logError("INFO", "readStory: End story render...");
+
+            htmlStoryRating = getStarRating(Convert.ToDouble(htmlStoryRating));
 
             Dictionary<string,string> dictCategories = getCategories();
 
             Dictionary<string,string> dictLanguages = getLanguages();
+
+            logError("INFO", "readStory: Begin HTML render...");
 
             Console.Write(getHtmlHead(htmlStylesheet));
 
@@ -1739,7 +1814,7 @@ namespace CgiInCSharp
                 Console.Write("<div class=\"tiles clearfix\">");
                 Console.Write("<div class=\"w5 h5\">");
                 Console.Write("<a href=\"#comments\"><span></span></a>");
-                Console.Write("<h1 id=\"story_beginning\">:: thanks for rating :: go to all comments ::</h1>");
+                Console.Write("<h1 id=\"story_beginning\">:: " + htmlStoryRating + " :: go to all comments ::</h1>");
                 Console.Write("</div>");
                 Console.Write("</div>");
                 Console.Write("&nbsp;");
@@ -1804,6 +1879,8 @@ namespace CgiInCSharp
 
             Console.Write("</body></html>");
 
+            logError("INFO", "readStory: End HTML render...");
+
             return true;
         }
 
@@ -1824,9 +1901,6 @@ namespace CgiInCSharp
                     string stored_or_new_story_secret = getStorySecret(htmlStoryAuthorName, htmlStoryTitle, htmlStorySecret);
                     string story_id = getStoryID(htmlStoryAuthorName, htmlStoryTitle, htmlStorySecret);
                     postedStory.Add("story_id", story_id);
-
-                    //Console.WriteLine(">>>>  " + stored_or_new_author_secret);
-                    //Console.WriteLine(">>>>  " + stored_or_new_story_secret);
 
                     // existing author, posted secret, no matching author secret found, bail
                     if (stored_or_new_author_secret.CompareTo("wrongauthorsecret") == 0)
@@ -1919,8 +1993,6 @@ namespace CgiInCSharp
             catch
             (Exception ex)
             {
-                //Console.WriteLine(">>> oops... could not insert story...");
-
                 previewStory(postedStory);
             }
 
@@ -1930,6 +2002,7 @@ namespace CgiInCSharp
         [STAThread]
         static void Main(string[] args)
         {
+            logError("INFO", "Main: Begin job...");
 
             SetConsoleMode(3, 0);
             Console.Write("Content-Type: text/html\n\n"); // CGI compliant string
@@ -1942,13 +2015,13 @@ namespace CgiInCSharp
 
             Dictionary<string, string> postedStory = new Dictionary<string, string>();
 
+            logError("INFO", "Main: Parsing...");
             postedStory = Cgi.postedStoryParse();
 
 
             ////////////////
             // calculate the fingerpring of the caller
             string fingerprint_hash =
-
             sha256(
                         postedStory["REMOTE_ADDR"] +
                         postedStory["HTTP_USER_AGENT"] +
@@ -1980,6 +2053,7 @@ namespace CgiInCSharp
             {
                 postAction = postedStory["read_story_button"];
 
+                logError("INFO", "Main: Reading...");
                 Cgi.readStory(postAction, fingerprint_hash);
 
             }
@@ -2006,6 +2080,7 @@ namespace CgiInCSharp
             try
             {
                 postAction = postedStory["rating"];
+                logError("INFO", "Main: Rating...");
                 rateStory(postedStory, commentStory(postedStory, fingerprint_hash), fingerprint_hash);
                 readStory(postedStory["story_id"], fingerprint_hash);
             }
@@ -2026,11 +2101,13 @@ namespace CgiInCSharp
             else if (postAction.CompareTo("preview_story") == 0)
             {
                 //Console.WriteLine(">>> previewing story...");
+                logError("INFO", "Main: Previewing...");
                 Cgi.previewStory(postedStory);
             }
             else if (postAction.CompareTo("submit_story") == 0)
             {
                 //Console.WriteLine(">>> submitting story...");
+                logError("INFO", "Main: Submitting...");
                 Cgi.postStory(postedStory);
             }
             else
