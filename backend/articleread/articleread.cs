@@ -30,7 +30,7 @@ namespace CgiInCSharp
 
         //private static string PostData;
         private static int PostLength;
-        private static char[] chararray;// = new char[1];
+        private static char[] chararray;// http stream buffer
 
         private static EventLog eventLogger = (EventLog)null;
         private static string DateTimeFormatterForLog = "HH:mm:ss.fff";
@@ -246,7 +246,7 @@ namespace CgiInCSharp
                     oracleConnection.ConnectionString = Cgi.connectionString;
                     oracleConnection.Open();
                     OracleCommand command = oracleConnection.CreateCommand();
-                    command.CommandText = "select user_secret from stories where user_alias = :author_name and rownum = 1";
+                    command.CommandText = "select user_secret from stories where upper(replace(replace(replace(replace(user_alias,' ',''),'.',''),'-',''),'_','')) = upper(replace(replace(replace(replace(:author_name,' ',''),'.',''),'-',''),'_','')) and rownum = 1";
                     command.Parameters.Add(new OracleParameter("author_name", author_name));
                     OracleDataReader oracleDataReader = command.ExecuteReader();
                     while (oracleDataReader.Read())
@@ -457,6 +457,40 @@ namespace CgiInCSharp
                     OracleCommand command = oracleConnection.CreateCommand();
                     command.CommandText = "select count(*) as counts from ratings where fingerprint_hash = :fingerprint_hash and (sysdate-0.2) < created_date"; // check most recent ratings 
                     command.Parameters.Add(new OracleParameter("fingerprint_hash", fingerprint_hash));
+                    OracleDataReader oracleDataReader = command.ExecuteReader();
+                    while (oracleDataReader.Read())
+                        num = (int)oracleDataReader.GetDecimal(0);
+                    oracleDataReader.Close();
+                    command.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                    Cgi.logError(((object)ex).ToString());
+                    throw new Exception(((object)ex).ToString());
+                }
+                finally
+                {
+                    oracleConnection.Close();
+                    oracleConnection.Dispose();
+                }
+            }
+            return num;
+        }
+
+        private static int getFingerprintCheck(string fingerprint_hash, string story_id)
+        {
+            int num = -1;
+            using (OracleConnection oracleConnection = new OracleConnection())
+            {
+                try
+                {
+                    oracleConnection.ConnectionString = Cgi.connectionString;
+                    oracleConnection.Open();
+                    OracleCommand command = oracleConnection.CreateCommand();
+                    command.CommandText = "select count(*) as counts from ratings where fingerprint_hash = :fingerprint_hash and story_id = :story_id and (sysdate-0.2) < created_date"; // check most recent ratings 
+                    command.Parameters.Add(new OracleParameter("fingerprint_hash", fingerprint_hash));
+                    command.Parameters.Add(new OracleParameter("story_id", story_id));
                     OracleDataReader oracleDataReader = command.ExecuteReader();
                     while (oracleDataReader.Read())
                         num = (int)oracleDataReader.GetDecimal(0);
@@ -1034,7 +1068,7 @@ namespace CgiInCSharp
 
             string newcommentsql = "insert into comments (comment_id, story_id, user_id, commenter_alias, comment_text, created_date, updated_date) values (:comment_id, :story_id, :user_id, :commenter_alias, :comment_text, SYSDATE, SYSDATE)";
 
-            if (getFingerprintCheck(fingerprint_hash) <= 0)
+            if (getFingerprintCheck(fingerprint_hash, postedAction["story_id"]) <= 0)
             {
 
                 int comment_id = getNewCommentID();
@@ -1101,7 +1135,7 @@ namespace CgiInCSharp
                 "WHERE STORY_ID = " + postedAction["story_id"] + " GROUP BY story_id,fingerprint_hash)) " +
                 "WHERE STORY_ID = " + postedAction["story_id"];
 
-            if (getFingerprintCheck(fingerprint_hash) <= 0)
+            if (getFingerprintCheck(fingerprint_hash, postedAction["story_id"]) <= 0)
             {
                 int rating_id = getNewRatingID();
 
@@ -1809,7 +1843,7 @@ namespace CgiInCSharp
             Console.Write("</table>");
             Console.Write("&nbsp;");
 
-            if ( getFingerprintCheck(fingerprint_hash) > 0 )
+            if (getFingerprintCheck(fingerprint_hash, story_id) > 0)
             {
                 Console.Write("<div class=\"tiles clearfix\">");
                 Console.Write("<div class=\"w5 h5\">");
