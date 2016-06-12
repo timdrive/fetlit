@@ -1528,7 +1528,7 @@ namespace CgiInCSharp
             Console.Write("<textarea name=\"summary\" id=\"summary\" cols=\"100\" rows=\"10\" maxlength=\"1000\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStorySummary);
 
             Console.Write("Story text (at least about 10,000 words and at most about 200,000 words): <br/>");
-            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"2000000\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStoryCleanBody);
+            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"5000000\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStoryCleanBody);
 
             Console.Write("By posting Your Content on this public Platform,");
             Console.Write("You are granting fetlit a limited, royalty-free,<br/>");
@@ -2155,3 +2155,61 @@ namespace CgiInCSharp
         }  // End of Main().
     }  // End of Cgi class.
 } // End of cgi_in_csharp namespace.
+
+
+/* search
+ * <html>
+
+<head>
+  <title>:: fetlit :: express yourself :: post your story ::</title>
+  <link href="preview.css" media="all" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+  <div class="tiles clearfix">
+    <div class="w4 h3">
+      <form name="post_story_banner" action="articleread.exe" method="post"><input name="post_story_button" type="hidden" value="post_story"><span onclick="post_story_banner.submit()"><a href="http://fetlit.com"><span></span></a>
+        <h1>:: fetlit :: express yourself :: post your story ::</h1></span>
+      </form>
+    </div>
+  </div><br />
+  <div class="search_story">
+    <form action="articleread.exe" method="POST">
+
+      <h2>
+        Author pen name : <br/><INPUT type="text" NAME="author" SIZE="100" minlength="5" maxlength="42" /><br/><br/>
+        
+        Story title : <br/><INPUT TYPE="text" NAME="title" SIZE="100" minlength="5" maxlength="60" /><br/><br/>
+        
+        Story tagline : <br/><INPUT TYPE="text" NAME="tagline" SIZE="100" minlength="5" maxlength="90"/><br/><br/>
+        
+        Story free text search : <br/><INPUT required TYPE="text" NAME="storybody" SIZE="100" minlength="5" maxlength="90"/><br/><br/>
+        
+        Story from date :&nbsp;&nbsp;<INPUT TYPE="date" NAME="fromdate"/> mm/dd/yyyy<br/><br/>
+        
+        Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE="date" NAME="todate"/> mm/dd/yyyy<br/><br/>
+        
+        Story category :&nbsp;&nbsp;&nbsp;<select name="category" id="category"><option value="HORROR_FICTION">Horror fiction</option><option value="NET_CLASSICS">Net 
+        Classic Works</option><option value="OLD_CLASSICS">Old Classic Works</option><option value="ROMANCE">Romance</option><option value="SCIENCE_FICTION">Science fiction</option><option value="TRAGEDY">Tragedy</option></select><br /><br/>
+        
+        Story language :&nbsp;&nbsp;<select name="language" id="language"><option value="ENGLISH">English</option><option value="FRENCH">French</option><option value="GERMAN">German</option><option value="ITALIAN">Italian</option><option value="RUSSIAN">Russian</option><option value="SPANISH">Spanish</option></select><br/><br/>
+
+        Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;
+        <select name="rating" id="rating">
+          <option value="1">1 Star</option>
+          <option value="2">2 Stars</option>
+          <option value="3">3 Stars</option>
+          <option value="4">4 Stars</option>
+          <option value="5">5 Stars</option>
+        </select><br /><br />
+        
+
+        <button type="submit" name="search_story_button" value="search_story">Search Stories</button><br/><br/>
+      </h2>
+
+    </form>
+  </div>
+</body>
+
+</html>
+*/
