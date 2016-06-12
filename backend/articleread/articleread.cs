@@ -2158,7 +2158,25 @@ namespace CgiInCSharp
 
 
 /* search
- * <html>
+
+select * from stories
+where
+get_clean_exactstring(user_alias) LIKE get_clean_likestring('*lawr*')
+and
+get_clean_exactstring(story_name) LIKE get_clean_likestring('*love*')
+and
+dbms_lob.instr(story_clob,get_clean_exactstring('love'))>0
+and
+updated_date between to_date('01/01/2000','mm/dd/yyyy') and TO_DATE('12/31/2090','mm/dd/yyyy')
+and
+story_category_01 = 'OLD_CLASSICS'
+and
+story_rating_overall >= 1
+and
+story_language = 'ENGLISH'
+
+ 
+<html>
 
 <head>
   <title>:: fetlit :: express yourself :: post your story ::</title>
