@@ -696,65 +696,99 @@ namespace FetlitCGI
         {
             logError("INFO", "getStorySearch: Start search...");
             string story_list = "";
-
-            string searchsql =
-" select * from stories" +
-" where get_clean_exactstring(user_alias) LIKE get_clean_likestring(:user_alias)" +
-" and get_clean_exactstring(story_name) LIKE get_clean_likestring(:story_name)" +
-//" and get_clean_exactstring(story_line) LIKE get_clean_likestring(:story_name)" +
-" and dbms_lob.instr(story_clob,get_clean_exactstring(:story_fullbodysearch))>0" +
-" and get_keyword_match(story_id,:story_keywords)>0" +
-" and updated_date between to_date(:fromdate,'yyyy-mm-dd') and TO_DATE(:todate,'yyyy-mm-dd')" +
-" and story_category_01 = :story_category_01" +
-" and story_rating_overall >= :story_rating_overall" +
-" and story_language = :story_language" +
-//" and story_words >= :story_words" +
-" and ROWNUM <= 10";
+            string searchsql = " select s.*,(select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where ROWNUM <= 10 ";
 
             string htmlStoryTitle = postedStory["title"];
             string htmlStoryAuthorName = postedStory["author"];
-            string htmlStoryTagline = postedStory["tagline"];
-            //string htmlStorySummary = postedStory["summary"];
+            string htmlStoryFullBodySearch = postedStory["storybody"];
+            string htmlStoryKeywords = postedStory["keywords"];
             string htmlStoryCategory = postedStory["category"];
             string htmlStoryLanguage = postedStory["language"];
-            string htmlStoryKeywords = postedStory["keywords"];
             string htmlStoryFromDate = postedStory["fromdate"];
             string htmlStoryToDate = postedStory["todate"];
             string htmlStoryRating = postedStory["search_rating"];
+            //string htmlStoryTagline = postedStory["tagline"];
+            //string htmlStorySummary = postedStory["summary"];
 
-            string htmlStoryFullBodySearch = postedStory["storybody"];
+             //" and get_clean_exactstring(story_line) LIKE get_clean_likestring(:story_name)" +
+             //" and story_words >= :story_words" +;
 
-            using (OracleConnection oracleConnection = new OracleConnection() )
+
+            using (OracleConnection oracleConnection = new OracleConnection(Cgi.connectionString))
             using (OracleCommand command = new OracleCommand(searchsql, oracleConnection) { BindByName = true })
             {
                 try
                 {
-                    oracleConnection.ConnectionString = Cgi.connectionString;
 
                     oracleConnection.Open();
+                    
+                    if (!(htmlStoryTitle.CompareTo("") == 0))
+                    {
+                        searchsql += " and get_clean_exactstring(story_name) LIKE get_clean_likestring(:story_name)";
+                        command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
+                        logError("INFO", searchsql + htmlStoryTitle);
+                    }
 
-                    //OracleCommand command = oracleConnection.CreateCommand();
+                    if (!(htmlStoryAuthorName.CompareTo("") == 0))
+                    {
+                        searchsql += " and get_clean_exactstring(user_alias) LIKE get_clean_likestring(:user_alias)";
+                        command.Parameters.Add(new OracleParameter("user_alias", htmlStoryAuthorName));
+                        logError("INFO", searchsql + htmlStoryAuthorName);
+                    }
 
-                    //command.CommandText = searchsql;
+                    if (!(htmlStoryFullBodySearch.CompareTo("") == 0))
+                    {
+                        searchsql += " and dbms_lob.instr(story_clob,get_clean_exactstring(:story_fullbodysearch))>0";
+                        command.Parameters.Add(new OracleParameter("story_fullbodysearch", htmlStoryFullBodySearch));
+                        logError("INFO", searchsql + htmlStoryFullBodySearch);
+                    }
 
-                    command.Parameters.Add(new OracleParameter("user_alias", htmlStoryAuthorName));
-                    command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
+                    if (!(htmlStoryKeywords.CompareTo("") == 0))
+                    {
+                        searchsql += " and get_keyword_match(story_id,:story_keywords)>0";
+                        command.Parameters.Add(new OracleParameter("story_keywords", htmlStoryKeywords));
+                        logError("INFO", searchsql + htmlStoryKeywords);
+                    }
+
+                    if (!(htmlStoryToDate.CompareTo("") == 0 || htmlStoryFromDate.CompareTo("") == 0))
+                    {
+                        searchsql += " and updated_date between to_date(:fromdate,'yyyy-mm-dd') and TO_DATE(:todate,'yyyy-mm-dd')";
+                        command.Parameters.Add(new OracleParameter("fromdate", htmlStoryFromDate));
+                        command.Parameters.Add(new OracleParameter("todate", htmlStoryToDate));
+                        logError("INFO", searchsql + htmlStoryFromDate + htmlStoryToDate);
+                    }
+
+                    if (!(htmlStoryCategory.CompareTo("Any") == 0))
+                    {
+                        searchsql += " and story_category_01 = :story_category_01";
+                        command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
+                        logError("INFO", searchsql + htmlStoryCategory);
+                    }
+
+                    if (!(htmlStoryTitle.CompareTo("") == 0))
+                    {
+                        searchsql += " and story_rating_overall >= :story_rating_overall";
+                        command.Parameters.Add(new OracleParameter("story_rating_overall", htmlStoryRating));
+                        logError("INFO", searchsql + htmlStoryRating);
+                    }
+
+                    if (!(htmlStoryLanguage.CompareTo("") == 0))
+                    {
+                        searchsql += " and story_language = :story_language";
+                        command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
+                        logError("INFO", searchsql + htmlStoryLanguage);
+                    }
+                    
                     //command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
-                    command.Parameters.Add(new OracleParameter("story_keywords", htmlStoryKeywords));
-                    command.Parameters.Add(new OracleParameter("story_fullbodysearch", htmlStoryFullBodySearch));
                     //command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
                     //command.Parameters.Add(new OracleParameter("story_words", "10000"));
                     //command.Parameters.Add(new OracleParameter("story_active", "Y"));
                     //command.Parameters.Add(new OracleParameter("story_status", "A"));
                     //command.Parameters.Add(new OracleParameter("story_notes", "some notes"));
-                    command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
-                    command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
-                    command.Parameters.Add(new OracleParameter("story_rating_overall", htmlStoryRating));
+                    
                     //command.Parameters.Add(new OracleParameter("story_rating_plot", "0"));
                     //command.Parameters.Add(new OracleParameter("story_rating_grammar", "0"));
                     //command.Parameters.Add(new OracleParameter("story_rating_style", "0"));
-                    command.Parameters.Add(new OracleParameter("fromdate", htmlStoryFromDate));
-                    command.Parameters.Add(new OracleParameter("todate", htmlStoryToDate));
 
 
                     OracleDataReader oracleDataReader = command.ExecuteReader();
@@ -765,7 +799,7 @@ namespace FetlitCGI
 
                     Dictionary<string, string> dictLanguages = getLanguages();
 
-                    string htmlStylesheet = "preview.css";
+                    string htmlStylesheet = "style.css";
                     //string htmlAction = "articleread.exe";
 
                     string htmlStoryCategoryS = "category";
@@ -787,7 +821,7 @@ namespace FetlitCGI
 
                     Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
-                    Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+                    Console.Write("Story free text search : <br/><INPUT TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
                     Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
 
@@ -827,9 +861,9 @@ namespace FetlitCGI
 
                     ////////////
 
-
                     while (oracleDataReader.Read())
                     {
+
                         string user_alias = Convert.ToString(oracleDataReader["user_alias"]);
                         string story_name = Convert.ToString(oracleDataReader["story_name"]);
                         string story_id = Convert.ToString(oracleDataReader["story_id"]);
@@ -887,7 +921,13 @@ namespace FetlitCGI
 
                     }
 
+                    Console.Write(story_list);
+
                     Console.Write("</body></html>");
+
+                    command.Parameters.Clear();
+                    command.Connection.Close();
+                    command.Dispose();
 
                 }
                 catch (Exception ex)
@@ -897,7 +937,6 @@ namespace FetlitCGI
                 }
                 finally
                 {
-
                     oracleConnection.Close();
                     oracleConnection.Dispose();
                 }
@@ -1807,7 +1846,7 @@ namespace FetlitCGI
 
             Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
-            Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+            Console.Write("Story free text search : <br/><INPUT TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
             Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
 
