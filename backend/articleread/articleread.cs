@@ -694,6 +694,7 @@ namespace FetlitCGI
 
         private static string getStorySearch(Dictionary<string, string> postedStory)
         {
+            logError("INFO", "getStorySearch: Start search...");
             string story_list = "";
 
             string searchsql =
@@ -703,7 +704,7 @@ namespace FetlitCGI
 //" and get_clean_exactstring(story_line) LIKE get_clean_likestring(:story_name)" +
 " and dbms_lob.instr(story_clob,get_clean_exactstring(:story_fullbodysearch))>0" +
 " and get_keyword_match(story_id,:story_keywords)>0" +
-" and updated_date between to_date(:fromdate,'mm/dd/yyyy') and TO_DATE(:todate,'mm/dd/yyyy')" +
+" and updated_date between to_date(:fromdate,'yyyy-mm-dd') and TO_DATE(:todate,'yyyy-mm-dd')" +
 " and story_category_01 = :story_category_01" +
 " and story_rating_overall >= :story_rating_overall" +
 " and story_language = :story_language" +
@@ -713,17 +714,18 @@ namespace FetlitCGI
             string htmlStoryTitle = postedStory["title"];
             string htmlStoryAuthorName = postedStory["author"];
             string htmlStoryTagline = postedStory["tagline"];
-            string htmlStorySummary = postedStory["summary"];
+            //string htmlStorySummary = postedStory["summary"];
             string htmlStoryCategory = postedStory["category"];
             string htmlStoryLanguage = postedStory["language"];
             string htmlStoryKeywords = postedStory["keywords"];
             string htmlStoryFromDate = postedStory["fromdate"];
             string htmlStoryToDate = postedStory["todate"];
-            string htmlStoryRating = postedStory["rating"];
+            string htmlStoryRating = postedStory["search_rating"];
 
             string htmlStoryFullBodySearch = postedStory["storybody"];
 
-            using (OracleConnection oracleConnection = new OracleConnection())
+            using (OracleConnection oracleConnection = new OracleConnection() )
+            using (OracleCommand command = new OracleCommand(searchsql, oracleConnection) { BindByName = true })
             {
                 try
                 {
@@ -731,9 +733,9 @@ namespace FetlitCGI
 
                     oracleConnection.Open();
 
-                    OracleCommand command = oracleConnection.CreateCommand();
+                    //OracleCommand command = oracleConnection.CreateCommand();
 
-                    command.CommandText = searchsql;
+                    //command.CommandText = searchsql;
 
                     command.Parameters.Add(new OracleParameter("user_alias", htmlStoryAuthorName));
                     command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
@@ -757,6 +759,75 @@ namespace FetlitCGI
 
                     OracleDataReader oracleDataReader = command.ExecuteReader();
 
+                    /////// Show again the basic story search body
+
+                    Dictionary<string, string> dictCategories = getCategories();
+
+                    Dictionary<string, string> dictLanguages = getLanguages();
+
+                    string htmlStylesheet = "preview.css";
+                    //string htmlAction = "articleread.exe";
+
+                    string htmlStoryCategoryS = "category";
+                    string htmlStoryLanguageS = "English";
+
+                    Console.Write(getHtmlHead(htmlStylesheet));
+
+                    Console.Write("<br />");
+
+                    Console.Write("<div class=\"filter_story\">");
+                    Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
+                    Console.Write("<h2>");
+
+                    Console.Write("Author pen name : <br/><INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" /><br/><br/>");
+
+                    Console.Write("Story title : <br/><INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" /><br/><br/>");
+
+                    Console.Write("Story tagline : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                    Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                    Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                    Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
+
+                    Console.Write("Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"todate\"/> mm/dd/yyyy<br/><br/>");
+
+                    Console.Write("Story category :&nbsp;&nbsp;&nbsp;<select name=\"category\" id=\"category\">");
+                    foreach (KeyValuePair<string, string> story_category in dictCategories)
+                    {
+                        Console.Write(("<option value=\"" + story_category.Key + "\">" + story_category.Value + "</option>").Replace(htmlStoryCategoryS + "\">", htmlStoryCategoryS + "\" selected=\"selected\">"));
+                    }
+                    Console.Write("</select><br /><br/>");
+
+                    Console.Write("");
+
+                    Console.Write("Story language :&nbsp;&nbsp;<select name=\"language\" id=\"language\">");
+                    foreach (KeyValuePair<string, string> story_language in dictLanguages)
+                    {
+                        Console.Write(("<option value=\"" + story_language.Key + "\">" + story_language.Value + "</option>").Replace(htmlStoryLanguageS + "\">", htmlStoryLanguageS + "\" selected=\"selected\">"));
+                    }
+                    Console.Write("</select><br/><br/>");
+
+                    Console.Write("Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;" +
+                    "<select name=\"search_rating\" id=\"search_rating\">" +
+                    "  <option value=\"1\">1 Star</option>" +
+                    "  <option value=\"2\">2 Stars</option>" +
+                    "  <option value=\"3\">3 Stars</option>" +
+                    "  <option value=\"4\">4 Stars</option>" +
+                    "  <option value=\"5\">5 Stars</option>" +
+                    "</select><br /><br />");
+
+
+                    Console.Write("<button type=\"submit\" name=\"filter_story_button\" value=\"filter_story\">Search Stories</button><br/><br/>");
+
+                    Console.Write("</h2>");
+                    Console.Write("</form>");
+                    Console.Write("</div>");
+
+                    ////////////
+
+
                     while (oracleDataReader.Read())
                     {
                         string user_alias = Convert.ToString(oracleDataReader["user_alias"]);
@@ -771,75 +842,6 @@ namespace FetlitCGI
                         string story_words = Convert.ToString(oracleDataReader["story_words"]);
                         string read_counter = Convert.ToString(oracleDataReader["read_counter"]);
                         string comment_counter = Convert.ToString(oracleDataReader["comment_counter"]);
-
-                        /////// Show again the basic story search body
-
-                        Dictionary<string, string> dictCategories = getCategories();
-
-                        Dictionary<string, string> dictLanguages = getLanguages();
-
-                        string htmlStylesheet = "preview.css";
-                        //string htmlAction = "articleread.exe";
-
-                        string htmlStoryCategoryS = "category";
-                        string htmlStoryLanguageS = "English";
-
-                        Console.Write(getHtmlHead(htmlStylesheet));
-
-                        Console.Write("<br />");
-
-                        Console.Write("<div class=\"submit_story\">");
-                        Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
-                        Console.Write("<h2>");
-
-                        Console.Write("Author pen name : <br/><INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" /><br/><br/>");
-
-                        Console.Write("Story title : <br/><INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" /><br/><br/>");
-
-                        Console.Write("Story tagline : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
-
-                        Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
-
-                        Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
-
-                        Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
-
-                        Console.Write("Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"todate\"/> mm/dd/yyyy<br/><br/>");
-
-                        Console.Write("Story category :&nbsp;&nbsp;&nbsp;<select name=\"category\" id=\"category\">");
-                        foreach (KeyValuePair<string, string> story_category in dictCategories)
-                        {
-                            Console.Write(("<option value=\"" + story_category.Key + "\">" + story_category.Value + "</option>").Replace(htmlStoryCategoryS + "\">", htmlStoryCategoryS + "\" selected=\"selected\">"));
-                        }
-                        Console.Write("</select><br /><br/>");
-
-                        Console.Write("");
-
-                        Console.Write("Story language :&nbsp;&nbsp;<select name=\"language\" id=\"language\">");
-                        foreach (KeyValuePair<string, string> story_language in dictLanguages)
-                        {
-                            Console.Write(("<option value=\"" + story_language.Key + "\">" + story_language.Value + "</option>").Replace(htmlStoryLanguageS + "\">", htmlStoryLanguageS + "\" selected=\"selected\">"));
-                        }
-                        Console.Write("</select><br/><br/>");
-
-                        Console.Write("Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;" +
-                        "<select name=\"rating\" id=\"rating\">" +
-                        "  <option value=\"1\">1 Star</option>" +
-                        "  <option value=\"2\">2 Stars</option>" +
-                        "  <option value=\"3\">3 Stars</option>" +
-                        "  <option value=\"4\">4 Stars</option>" +
-                        "  <option value=\"5\">5 Stars</option>" +
-                        "</select><br /><br />");
-
-
-                        Console.Write("<button type=\"submit\" name=\"search_story_button\" value=\"search_story\">Search Stories</button><br/><br/>");
-
-                        Console.Write("</h2>");
-                        Console.Write("</form>");
-                        Console.Write("</div>");
-
-                        ////////////
-
 
                         story_list += "<tr>";
                         story_list += "<td>";
@@ -883,9 +885,10 @@ namespace FetlitCGI
                         story_list += "</td>";
                         story_list += "</tr>";
 
-                        Console.Write("</body></html>");
-
                     }
+
+                    Console.Write("</body></html>");
+
                 }
                 catch (Exception ex)
                 {
@@ -1608,6 +1611,7 @@ namespace FetlitCGI
                 string value = HttpUtility.UrlDecode(kvPair[1]);
                 //string value = WebUtility.UrlDecode(kvPair[1]);
                 //string value = WebUtility.HtmlDecode(kvPair[1]);
+                logError("INFO", "postedStoryParse: Adding... " + key+ " ... " +value);
                 pStory.Add(key, value);
             }
 
@@ -1632,9 +1636,14 @@ namespace FetlitCGI
             head += "<body>";
             head += "<div class=\"tiles clearfix\">";
             head += "<div class=\"w4 h3\">";
-            head += "<form name=\"post_story_banner\" action=\""+htmlAction+"\" method=\"post\">";
-            head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
-            head += "<span onclick=\"post_story_banner.submit()\">";
+            //head += "<form name=\"post_story_banner\" action=\""+htmlAction+"\" method=\"post\">";
+            //head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
+            //head += "<span onclick=\"post_story_banner.submit()\">";
+
+            head += "<form name=\"search_story_banner\" action=\"" + htmlAction + "\" method=\"post\">";
+            head += "<input name=\"search_story_button\" type=\"hidden\" value=\"search_story\">";
+            head += "<span onclick=\"search_story_banner.submit()\">";
+
             head += "<a href=\"http://"+htmlRoot+"\"><span></span></a>";
             head += String.Format("<h1>{0}</h1>", htmlTitle);
             head += "</span>";
@@ -1786,7 +1795,7 @@ namespace FetlitCGI
 
             Console.Write("<br />");
 
-            Console.Write("<div class=\"search_story\">");
+            Console.Write("<div class=\"filter_story\">");
             Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
             Console.Write("<h2>");
 
@@ -1796,7 +1805,7 @@ namespace FetlitCGI
 
             Console.Write("Story tagline : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
-            Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+            Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
             Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
 
@@ -1821,7 +1830,7 @@ namespace FetlitCGI
             Console.Write("</select><br/><br/>");
 
             Console.Write("Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;" +
-            "<select name=\"rating\" id=\"rating\">" +
+            "<select name=\"search_rating\" id=\"search_rating\">" +
             "  <option value=\"1\">1 Star</option>" +
             "  <option value=\"2\">2 Stars</option>" +
             "  <option value=\"3\">3 Stars</option>" +
@@ -1830,7 +1839,7 @@ namespace FetlitCGI
             "</select><br /><br />");
 
 
-            Console.Write("<button type=\"submit\" name=\"search_story_button\" value=\"search_story\">Search Stories</button><br/><br/>");
+            Console.Write("<button type=\"submit\" name=\"filter_story_button\" value=\"filter_story\">Search Stories</button><br/><br/>");
 
             Console.Write("</h2>");
             Console.Write("</form>");
@@ -2400,6 +2409,19 @@ namespace FetlitCGI
 
             try
             {
+                postAction = postedStory["search_story_button"];
+            }
+            catch (Exception e) { ;}
+
+            try
+            {
+                postAction = postedStory["filter_story_button"];
+                logError("INFO", "Main: filter_story_button... " + postAction);
+            }
+            catch (Exception e) { ;}
+
+            try
+            {
                 postAction = postedStory["submit_story_button"];
             }
             catch (Exception e) { ;}
@@ -2407,7 +2429,7 @@ namespace FetlitCGI
             try
             {
                 postAction = postedStory["rating"];
-                logError("INFO", "Main: Rating...");
+                //logError("INFO", "Main: Rating...");
                 rateStory(postedStory, commentStory(postedStory, fingerprint_hash), fingerprint_hash);
                 readStory(postedStory["story_id"], fingerprint_hash);
             }
@@ -2424,6 +2446,17 @@ namespace FetlitCGI
             {
                 //Console.WriteLine(">>> previewing story...");
                 Cgi.postStory();
+            }
+            else if (postAction.CompareTo("search_story") == 0)
+            {
+                //Console.WriteLine(">>> previewing story...");
+                Cgi.searchStory();
+            }
+            else if (postAction.CompareTo("filter_story") == 0)
+            {
+                //Console.WriteLine(">>> previewing story...");
+                logError("INFO", "Main: postAction.CompareTo... " + postAction);
+                Cgi.getStorySearch(postedStory);
             }
             else if (postAction.CompareTo("preview_story") == 0)
             {
