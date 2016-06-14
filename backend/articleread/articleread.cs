@@ -15,7 +15,7 @@ using System.Net;
 using System.Web.Security;
 using System.Security.Cryptography;
 
-namespace CgiInCSharp
+namespace FetlitCGI
 {
     class Cgi
     {
@@ -25,6 +25,9 @@ namespace CgiInCSharp
         private static int max_post_length = 5000000; // max length of posted text in bytes
         private static int max_con_timeout = 100; // max timeout of the connection milliseconds
         private static int max_num_stories = 10; // max number of stories per category to display
+
+        private static string htmlRoot = "localhost";
+        private static string htmlAction = "articleread.exe";
 
         private static string newStoryHash = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(System.Web.Security.Membership.GeneratePassword(32, 0))).Replace("=", "").Replace("+", "").Replace("/", "");
 
@@ -658,7 +661,7 @@ namespace CgiInCSharp
                 story_list += "</span></p><p class=\"i3\">";
                 story_list += created_date;
                 story_list += "</p></td>";
-                story_list += "<td><form action=\"articleread.exe\" method=\"POST\"><input type=\"hidden\" name=\"read_story_button\" value=\"" + story_id + "\"/><input type=\"submit\" value=\"";
+                story_list += "<td><form action=\""+htmlAction+"\" method=\"POST\"><input type=\"hidden\" name=\"read_story_button\" value=\"" + story_id + "\"/><input type=\"submit\" value=\"";
                 story_list += story_name;
                 story_list += "\"/></form><h6>";
                 story_list += story_summary;
@@ -685,6 +688,218 @@ namespace CgiInCSharp
 
             oracleDataReader2.Close();
             oracleDataReader2.Dispose();
+
+            return story_list;
+        }
+
+        private static string getStorySearch(Dictionary<string, string> postedStory)
+        {
+            string story_list = "";
+
+            string searchsql =
+" select * from stories" +
+" where get_clean_exactstring(user_alias) LIKE get_clean_likestring(:user_alias)" +
+" and get_clean_exactstring(story_name) LIKE get_clean_likestring(:story_name)" +
+//" and get_clean_exactstring(story_line) LIKE get_clean_likestring(:story_name)" +
+" and dbms_lob.instr(story_clob,get_clean_exactstring(:story_fullbodysearch))>0" +
+" and get_keyword_match(story_id,:story_keywords)>0" +
+" and updated_date between to_date(:fromdate,'mm/dd/yyyy') and TO_DATE(:todate,'mm/dd/yyyy')" +
+" and story_category_01 = :story_category_01" +
+" and story_rating_overall >= :story_rating_overall" +
+" and story_language = :story_language" +
+//" and story_words >= :story_words" +
+" and ROWNUM <= 10";
+
+            string htmlStoryTitle = postedStory["title"];
+            string htmlStoryAuthorName = postedStory["author"];
+            string htmlStoryTagline = postedStory["tagline"];
+            string htmlStorySummary = postedStory["summary"];
+            string htmlStoryCategory = postedStory["category"];
+            string htmlStoryLanguage = postedStory["language"];
+            string htmlStoryKeywords = postedStory["keywords"];
+            string htmlStoryFromDate = postedStory["fromdate"];
+            string htmlStoryToDate = postedStory["todate"];
+            string htmlStoryRating = postedStory["rating"];
+
+            string htmlStoryFullBodySearch = postedStory["storybody"];
+
+            using (OracleConnection oracleConnection = new OracleConnection())
+            {
+                try
+                {
+                    oracleConnection.ConnectionString = Cgi.connectionString;
+
+                    oracleConnection.Open();
+
+                    OracleCommand command = oracleConnection.CreateCommand();
+
+                    command.CommandText = searchsql;
+
+                    command.Parameters.Add(new OracleParameter("user_alias", htmlStoryAuthorName));
+                    command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
+                    //command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
+                    command.Parameters.Add(new OracleParameter("story_keywords", htmlStoryKeywords));
+                    command.Parameters.Add(new OracleParameter("story_fullbodysearch", htmlStoryFullBodySearch));
+                    //command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
+                    //command.Parameters.Add(new OracleParameter("story_words", "10000"));
+                    //command.Parameters.Add(new OracleParameter("story_active", "Y"));
+                    //command.Parameters.Add(new OracleParameter("story_status", "A"));
+                    //command.Parameters.Add(new OracleParameter("story_notes", "some notes"));
+                    command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
+                    command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
+                    command.Parameters.Add(new OracleParameter("story_rating_overall", htmlStoryRating));
+                    //command.Parameters.Add(new OracleParameter("story_rating_plot", "0"));
+                    //command.Parameters.Add(new OracleParameter("story_rating_grammar", "0"));
+                    //command.Parameters.Add(new OracleParameter("story_rating_style", "0"));
+                    command.Parameters.Add(new OracleParameter("fromdate", htmlStoryFromDate));
+                    command.Parameters.Add(new OracleParameter("todate", htmlStoryToDate));
+
+
+                    OracleDataReader oracleDataReader = command.ExecuteReader();
+
+                    while (oracleDataReader.Read())
+                    {
+                        string user_alias = Convert.ToString(oracleDataReader["user_alias"]);
+                        string story_name = Convert.ToString(oracleDataReader["story_name"]);
+                        string story_id = Convert.ToString(oracleDataReader["story_id"]);
+                        string created_date = Convert.ToString(oracleDataReader["created_date"]);
+                        string story_rating_overall = Convert.ToString(oracleDataReader["story_rating_overall"]);
+                        string story_rating_plot = Convert.ToString(oracleDataReader["story_rating_plot"]);
+                        string story_rating_grammar = Convert.ToString(oracleDataReader["story_rating_grammar"]);
+                        string story_rating_style = Convert.ToString(oracleDataReader["story_rating_style"]);
+                        string story_summary = Convert.ToString(oracleDataReader["story_summary"]);
+                        string story_words = Convert.ToString(oracleDataReader["story_words"]);
+                        string read_counter = Convert.ToString(oracleDataReader["read_counter"]);
+                        string comment_counter = Convert.ToString(oracleDataReader["comment_counter"]);
+
+                        /////// Show again the basic story search body
+
+                        Dictionary<string, string> dictCategories = getCategories();
+
+                        Dictionary<string, string> dictLanguages = getLanguages();
+
+                        string htmlStylesheet = "preview.css";
+                        //string htmlAction = "articleread.exe";
+
+                        string htmlStoryCategoryS = "category";
+                        string htmlStoryLanguageS = "English";
+
+                        Console.Write(getHtmlHead(htmlStylesheet));
+
+                        Console.Write("<br />");
+
+                        Console.Write("<div class=\"submit_story\">");
+                        Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
+                        Console.Write("<h2>");
+
+                        Console.Write("Author pen name : <br/><INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" /><br/><br/>");
+
+                        Console.Write("Story title : <br/><INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" /><br/><br/>");
+
+                        Console.Write("Story tagline : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                        Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                        Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+                        Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
+
+                        Console.Write("Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"todate\"/> mm/dd/yyyy<br/><br/>");
+
+                        Console.Write("Story category :&nbsp;&nbsp;&nbsp;<select name=\"category\" id=\"category\">");
+                        foreach (KeyValuePair<string, string> story_category in dictCategories)
+                        {
+                            Console.Write(("<option value=\"" + story_category.Key + "\">" + story_category.Value + "</option>").Replace(htmlStoryCategoryS + "\">", htmlStoryCategoryS + "\" selected=\"selected\">"));
+                        }
+                        Console.Write("</select><br /><br/>");
+
+                        Console.Write("");
+
+                        Console.Write("Story language :&nbsp;&nbsp;<select name=\"language\" id=\"language\">");
+                        foreach (KeyValuePair<string, string> story_language in dictLanguages)
+                        {
+                            Console.Write(("<option value=\"" + story_language.Key + "\">" + story_language.Value + "</option>").Replace(htmlStoryLanguageS + "\">", htmlStoryLanguageS + "\" selected=\"selected\">"));
+                        }
+                        Console.Write("</select><br/><br/>");
+
+                        Console.Write("Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;" +
+                        "<select name=\"rating\" id=\"rating\">" +
+                        "  <option value=\"1\">1 Star</option>" +
+                        "  <option value=\"2\">2 Stars</option>" +
+                        "  <option value=\"3\">3 Stars</option>" +
+                        "  <option value=\"4\">4 Stars</option>" +
+                        "  <option value=\"5\">5 Stars</option>" +
+                        "</select><br /><br />");
+
+
+                        Console.Write("<button type=\"submit\" name=\"search_story_button\" value=\"search_story\">Search Stories</button><br/><br/>");
+
+                        Console.Write("</h2>");
+                        Console.Write("</form>");
+                        Console.Write("</div>");
+
+                        ////////////
+
+
+                        story_list += "<tr>";
+                        story_list += "<td>";
+                        story_list += "<p class=\"i1\">" + getStarRating(Convert.ToDouble(story_rating_overall)) + "</p>"; // hollow ☆ (&#9734;) semi-solid ✭ (&#10029;) almost-solid ✮ (&#10030;) solid ★ (&#9733;) hollow ✰ (& #10032;)
+
+
+                        string hot_beverage = "";
+                        string solid_heart = "";
+
+                        if (Convert.ToDouble(story_rating_overall) > 4.0 && Convert.ToDouble(read_counter) > 10)
+                            hot_beverage = "&#9749;&nbsp";
+
+                        if ((Convert.ToDouble(story_rating_plot) + Convert.ToDouble(story_rating_grammar) + Convert.ToDouble(story_rating_style)) / 3 >= 4.66)
+                            solid_heart = "&#9829;&nbsp";
+
+                        story_list += "<p class=\"i1\">" + hot_beverage + solid_heart + "<span class=\"si1b\">"; // hot beverage
+
+                        story_list += String.Format("{0:0.000}", Convert.ToDouble(story_rating_overall));
+                        story_list += "</span></p><p class=\"i3\">";
+                        story_list += created_date;
+                        story_list += "</p></td>";
+                        story_list += "<td><form action=\"" + htmlAction + "\" method=\"POST\"><input type=\"hidden\" name=\"read_story_button\" value=\"" + story_id + "\"/><input type=\"submit\" value=\"";
+                        story_list += story_name;
+                        story_list += "\"/></form><h6>";
+                        story_list += story_summary;
+                        story_list += "</h6></td>";
+                        story_list += "<td><h5>";
+                        //<a href=\"";
+                        //story_list += "https://en.wikipedia.org/wiki/Anne_Desclos";
+                        //story_list += "\">";
+                        story_list += user_alias;
+                        //story_list += "</a>
+                        story_list += "</h5></td>";
+                        story_list += "<td>";
+                        story_list += String.Format("<p class=\"i3\">{0:###,###,###}</p>", Convert.ToDouble(story_words)); ;
+                        story_list += "</td>";
+                        story_list += "<td>";
+                        story_list += "<p class=\"i2\">&#9993; <span class=\"si2b\">" + comment_counter + "</span></p>"; // letter-email
+                        story_list += "<p class=\"i2\">&#8634; <span class=\"si2b\">" + read_counter + "</span></p>"; // reloads
+                        story_list += "<p class=\"i2\"><span class=\"si2b\">I-" + story_id + "</span></p>"; // story id
+                        story_list += "</td>";
+                        story_list += "</tr>";
+
+                        Console.Write("</body></html>");
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Cgi.logError(((object)ex).ToString());
+                    throw new Exception(((object)ex).ToString());
+                }
+                finally
+                {
+
+                    oracleConnection.Close();
+                    oracleConnection.Dispose();
+                }
+            }
+
 
             return story_list;
         }
@@ -727,7 +942,7 @@ namespace CgiInCSharp
                         oracleConnection2.Open();
 
                         OracleCommand command = oracleConnection.CreateCommand();
-                        OracleCommand command2 = oracleConnection.CreateCommand();
+                        OracleCommand command2 = oracleConnection2.CreateCommand();
 
                         command.CommandText = sql;
 
@@ -865,7 +1080,7 @@ namespace CgiInCSharp
 
             string storycolumns =
                 "story_id, user_alias, user_secret, story_name," +
-                "story_line, story_copyright, story_summary, story_clob," +
+                "story_line, story_keywords, story_copyright, story_summary, story_clob," +
                 "story_words, story_active, story_status, story_notes, story_language," +
                 "story_category_01, story_category_02, story_category_03," +
                 "story_rating_overall, story_rating_plot," +
@@ -874,7 +1089,7 @@ namespace CgiInCSharp
 
             string storyparams =
                 ":story_id, :user_alias, :user_secret, :story_name," +
-                ":story_line, :story_copyright, :story_summary, EMPTY_CLOB()," +
+                ":story_line, :story_keywords, :story_copyright, :story_summary, EMPTY_CLOB()," +
                 ":story_words, :story_active, :story_status, :story_notes, :story_language," +
                 ":story_category_01, :story_category_02, :story_category_03," +
                 ":story_rating_overall, :story_rating_plot," +
@@ -892,7 +1107,7 @@ namespace CgiInCSharp
             string htmlStoryPostBody = postedStory["raw_story"];
             string htmlStoryCategory = postedStory["category"];
             string htmlStoryLanguage = postedStory["language"];
-            string htmlStoryKeywords = "love, kiss, hug";
+            string htmlStoryKeywords = postedStory["keywords"];
 
             int story_id = getNewStoryID();
 
@@ -917,6 +1132,7 @@ namespace CgiInCSharp
                     command.Parameters.Add(new OracleParameter("user_secret", htmlStoryAuthorSecret));
                     command.Parameters.Add(new OracleParameter("story_name", htmlStoryTitle));
                     command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
+                    command.Parameters.Add(new OracleParameter("story_keywords", htmlStoryKeywords));
                     command.Parameters.Add(new OracleParameter("story_copyright", "Copyright (c) " + htmlStoryAuthorName));
                     command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
                     command.Parameters.Add(new OracleParameter("story_words", "10000"));
@@ -985,9 +1201,9 @@ namespace CgiInCSharp
             string htmlStoryPostBody = postedStory["raw_story"];
             string htmlStoryCategory = postedStory["category"];
             string htmlStoryLanguage = postedStory["language"];
-            string htmlStoryKeywords = "love, kiss, hug";
+            string htmlStoryKeywords = postedStory["keywords"];
 
-            string updatestorysql = "update stories set story_line = :story_line, story_summary = :story_summary, story_language = :story_language, story_category_01 = :story_category_01, story_clob = :story_clob where story_id = :story_id";
+            string updatestorysql = "update stories set story_line = :story_line, story_summary = :story_summary, story_keywords = :story_keywords, story_language = :story_language, story_category_01 = :story_category_01, story_clob = :story_clob where story_id = :story_id";
 
             //Console.WriteLine(">>> About to open connection...");
 
@@ -1004,6 +1220,7 @@ namespace CgiInCSharp
                     command.Parameters.Add(new OracleParameter("story_id", story_id));
                     command.Parameters.Add(new OracleParameter("story_line", htmlStoryTagline));
                     command.Parameters.Add(new OracleParameter("story_summary", htmlStorySummary));
+                    command.Parameters.Add(new OracleParameter("story_keywords", htmlStoryKeywords));
                     command.Parameters.Add(new OracleParameter("story_language", htmlStoryLanguage));
                     command.Parameters.Add(new OracleParameter("story_category_01", htmlStoryCategory));
                     command.Parameters.Add("story_clob", OracleDbType.Clob, htmlStoryCleanBody, System.Data.ParameterDirection.Input);
@@ -1415,10 +1632,10 @@ namespace CgiInCSharp
             head += "<body>";
             head += "<div class=\"tiles clearfix\">";
             head += "<div class=\"w4 h3\">";
-            head += "<form name=\"post_story_banner\" action=\"articleread.exe\" method=\"post\">";
+            head += "<form name=\"post_story_banner\" action=\""+htmlAction+"\" method=\"post\">";
             head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
             head += "<span onclick=\"post_story_banner.submit()\">";
-            head += "<a href=\"http://fetlit.com\"><span></span></a>";
+            head += "<a href=\"http://"+htmlRoot+"\"><span></span></a>";
             head += String.Format("<h1>{0}</h1>", htmlTitle);
             head += "</span>";
             head += "</form>";
@@ -1452,17 +1669,14 @@ namespace CgiInCSharp
         private static bool postStory()
         {
 
-            //Dictionary<string, string> postedStory = new Dictionary<string, string>();
+            Dictionary<string, string> dictCategories = getCategories();
 
-            Dictionary<string,string> dictCategories = getCategories();
-
-            Dictionary<string,string> dictLanguages = getLanguages();
+            Dictionary<string, string> dictLanguages = getLanguages();
 
             //postedStory = Cgi.postedStoryParse();
 
-            string htmlHeader = ":: fetlit :: express yourself ::";
             string htmlStylesheet = "preview.css";
-            
+
             string htmlStoryTitle = "On the extremes of good and evil";
             string htmlStoryAuthorName = "Marcus Tulii Ciceronis";
             string htmlStoryAuthorEmail = "ciceronis@fetlit.com";
@@ -1478,13 +1692,11 @@ namespace CgiInCSharp
                 + "Hence when we say that the End of all living creatures is to live in accordance with nature, this must not be construed as meaning that all have one and the same end; but just as it is correct to say that all the arts and sciences have the common characteristic of occupying themselves with some branch of knowledge, while each art has its own particular branch of knowledge belonging to it, so all animals have the common End of living according to nature, but their natures are diverse, so that one thing is in accordance with nature for the horse, another for the ox, and another for man, and yet in all the Supreme End is common, and that not only in animals but also in all those things upon which nature bestows nourishment, increase and protection. Among these things we notice that plants can, in a sense, perform on their own behalf a number of actions conducive to their life and growth, so that they may attain their End after their kind. So that finally we may embrace all animate existence in one broad generalization, and say without hesitation, that all nature is self-preserving, and has before it the end and aim of maintaining itself in the best possible condition after its kind; and that consequently all things endowed by nature with life have a similar, but not an identical, End. This leads to the inference, that the ultimate Good of man is life in accordance with nature, which we may interpret as meaning life in accordance with human nature developed to its full perfection and supplied with all its needs.";
             string htmlStoryCategory = "category";
             string htmlStoryLanguage = "English";
-            
-            string htmlStoryKeywords = "love, kiss, hug";
+
+            string htmlStoryKeywords = "Virgin, werewolf, teen, blood";
             string htmlAgreeTOC = "";
-            string htmlSubmitAction = "preview";
-            string htmlAction = "articleread.exe";
+
             string htmlErrorTOC = "";
-            //string html = "";
 
 
             Console.Write(getHtmlHead(htmlStylesheet));
@@ -1507,6 +1719,8 @@ namespace CgiInCSharp
             Console.Write("<INPUT required TYPE=\"text\" NAME=\"title\" SIZE=\"100\" minlength=\"5\" maxlength=\"60\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTitle);
             Console.Write("Story tagline (required, 90 characters max): <br/>");
             Console.Write("<INPUT required TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" minlength=\"5\" maxlength=\"90\" placeholder=\"{0}\"/><br/><br/>", htmlStoryTagline);
+            Console.Write("Story keywords (required, comma separated, 90 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" minlength=\"5\" maxlength=\"90\" placeholder=\"{0}\"/><br/><br/>", htmlStoryKeywords);
 
             Console.Write("Story category: <select name=\"category\" id=\"category\">");
             foreach (KeyValuePair<string, string> story_category in dictCategories)
@@ -1556,6 +1770,76 @@ namespace CgiInCSharp
             return true;
         }
 
+        private static bool searchStory()
+        {
+
+            Dictionary<string, string> dictCategories = getCategories();
+
+            Dictionary<string, string> dictLanguages = getLanguages();
+
+            string htmlStylesheet = "preview.css";
+
+            string htmlStoryCategory = "category";
+            string htmlStoryLanguage = "English";
+
+            Console.Write(getHtmlHead(htmlStylesheet));
+
+            Console.Write("<br />");
+
+            Console.Write("<div class=\"search_story\">");
+            Console.Write("<form action=\"{0}\" method=\"POST\">", htmlAction);
+            Console.Write("<h2>");
+
+            Console.Write("Author pen name : <br/><INPUT type=\"text\" NAME=\"author\" SIZE=\"100\" maxlength=\"42\" /><br/><br/>");
+
+            Console.Write("Story title : <br/><INPUT TYPE=\"text\" NAME=\"title\" SIZE=\"100\" maxlength=\"60\" /><br/><br/>");
+
+            Console.Write("Story tagline : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+            Console.Write("Story keywords : <br/><INPUT TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+            Console.Write("Story free text search : <br/><INPUT required TYPE=\"text\" NAME=\"storybody\" SIZE=\"100\" maxlength=\"90\"/><br/><br/>");
+
+            Console.Write("Story from date :&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"fromdate\"/> mm/dd/yyyy<br/><br/>");
+
+            Console.Write("Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE=\"date\" NAME=\"todate\"/> mm/dd/yyyy<br/><br/>");
+
+            Console.Write("Story category :&nbsp;&nbsp;&nbsp;<select name=\"category\" id=\"category\">");
+            foreach (KeyValuePair<string, string> story_category in dictCategories)
+            {
+                Console.Write(("<option value=\"" + story_category.Key + "\">" + story_category.Value + "</option>").Replace(htmlStoryCategory + "\">", htmlStoryCategory + "\" selected=\"selected\">"));
+            }
+            Console.Write("</select><br /><br/>");
+
+            Console.Write("");
+
+            Console.Write("Story language :&nbsp;&nbsp;<select name=\"language\" id=\"language\">");
+            foreach (KeyValuePair<string, string> story_language in dictLanguages)
+            {
+                Console.Write(("<option value=\"" + story_language.Key + "\">" + story_language.Value + "</option>").Replace(htmlStoryLanguage + "\">", htmlStoryLanguage + "\" selected=\"selected\">"));
+            }
+            Console.Write("</select><br/><br/>");
+
+            Console.Write("Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;" +
+            "<select name=\"rating\" id=\"rating\">" +
+            "  <option value=\"1\">1 Star</option>" +
+            "  <option value=\"2\">2 Stars</option>" +
+            "  <option value=\"3\">3 Stars</option>" +
+            "  <option value=\"4\">4 Stars</option>" +
+            "  <option value=\"5\">5 Stars</option>" +
+            "</select><br /><br />");
+
+
+            Console.Write("<button type=\"submit\" name=\"search_story_button\" value=\"search_story\">Search Stories</button><br/><br/>");
+
+            Console.Write("</h2>");
+            Console.Write("</form>");
+            Console.Write("</div>");
+            Console.Write("</body></html>");
+
+            return true;
+        }
+
         private static bool previewStory(Dictionary<string, string> postedStory)
         {
 
@@ -1580,10 +1864,10 @@ namespace CgiInCSharp
             string htmlStoryPostBody = postedStory["raw_story"];
             string htmlStoryCategory = postedStory["category"];
             string htmlStoryLanguage = postedStory["language"];
-            string htmlStoryKeywords = "love, kiss, hug";
+            string htmlStoryKeywords = postedStory["keywords"];
             string htmlAgreeTOC = "";
             string htmlSubmitAction = "preview";
-            string htmlAction = "articleread.exe";
+            //string htmlAction = "articleread.exe";
             string htmlErrorTOC = "";
             //string html = "";
 
@@ -1650,6 +1934,13 @@ namespace CgiInCSharp
             Console.Write("<td>");
             Console.Write("<h2>{0}</h2></td>", htmlStorySummary);
             Console.Write("</tr>");
+            Console.Write("<tr>");
+            Console.Write("<td>");
+            Console.Write("<h2>Keywords:</h2></td>");
+            Console.Write("<td>");
+            Console.Write("<h2>{0}</h2></td>", htmlStoryKeywords);
+            Console.Write("</tr>");
+
             Console.Write("</tbody>");
             Console.Write("</table>");
 
@@ -1683,6 +1974,8 @@ namespace CgiInCSharp
             Console.Write("<INPUT required TYPE=\"text\" NAME=\"title\" SIZE=\"100\" minlength=\"5\" maxlength=\"60\" value=\"{0}\"/><br/><br/>", htmlStoryTitle);
             Console.Write("Story tagline (required, 100 characters max): <br/>");
             Console.Write("<INPUT required TYPE=\"text\" NAME=\"tagline\" SIZE=\"100\" minlength=\"5\" maxlength=\"100\" value=\"{0}\"/><br/><br/>", htmlStoryTagline);
+            Console.Write("Story keywords (required, comma separated, 90 characters max): <br/>");
+            Console.Write("<INPUT required TYPE=\"text\" NAME=\"keywords\" SIZE=\"100\" minlength=\"5\" maxlength=\"90\" value=\"{0}\"/><br/><br/>", htmlStoryKeywords);
 
             Console.Write("Story category: <select name=\"category\" id=\"category\">");
             foreach (KeyValuePair<string, string> story_category in dictCategories)
@@ -1856,7 +2149,7 @@ namespace CgiInCSharp
             else
             {
                 Console.Write("<div class=\"rating\"><table><tbody><tr><td>");
-                Console.Write("<form class=\"rating\" name=\"rate_comment_story\" action=\"articleread.exe\" method=\"POST\">");
+                Console.Write("<form class=\"rating\" name=\"rate_comment_story\" action=\""+htmlAction+"\" method=\"POST\">");
                 Console.Write("<h2>Please rate and/or comment on the story; clicking on the rating will also submit your comments (about 1000 words at most):</h2>");
                 Console.Write("<textarea name=\"comment\" id=\"comment\" cols=\"85\" rows=\"13\" maxlength=\"3900\"></textarea><br/><br/>");
                 Console.Write("<input type=\"submit\" type=\"radio\" id=\"star5\" name=\"rating\" value=\"5\" /><label for=\"star5\" title=\"Best!\">5 stars</label>");
@@ -2157,77 +2450,15 @@ namespace CgiInCSharp
 } // End of cgi_in_csharp namespace.
 
 
-/* search
-
-select * from stories
+/*
+select * from (
+select 
+Q1.position as p1, Q1.string as s1, 
+Q2.position as p2, Q2.string as s2
+from 
+table(string_indexes((SELECT lower(story_clob) FROM STORIES WHERE story_id = 472),lower('little girl'))) Q1,
+table(string_indexes((SELECT lower(story_clob) FROM STORIES WHERE story_id = 472),lower('hello'))) Q2
+)
 where
-get_clean_exactstring(user_alias) LIKE get_clean_likestring('*lawr*')
-and
-get_clean_exactstring(story_name) LIKE get_clean_likestring('*love*')
-and
-dbms_lob.instr(story_clob,get_clean_exactstring('love'))>0
-and
-updated_date between to_date('01/01/2000','mm/dd/yyyy') and TO_DATE('12/31/2090','mm/dd/yyyy')
-and
-story_category_01 = 'OLD_CLASSICS'
-and
-story_rating_overall >= 1
-and
-story_language = 'ENGLISH'
-
- 
-<html>
-
-<head>
-  <title>:: fetlit :: express yourself :: post your story ::</title>
-  <link href="preview.css" media="all" rel="stylesheet" type="text/css" />
-</head>
-
-<body>
-  <div class="tiles clearfix">
-    <div class="w4 h3">
-      <form name="post_story_banner" action="articleread.exe" method="post"><input name="post_story_button" type="hidden" value="post_story"><span onclick="post_story_banner.submit()"><a href="http://fetlit.com"><span></span></a>
-        <h1>:: fetlit :: express yourself :: post your story ::</h1></span>
-      </form>
-    </div>
-  </div><br />
-  <div class="search_story">
-    <form action="articleread.exe" method="POST">
-
-      <h2>
-        Author pen name : <br/><INPUT type="text" NAME="author" SIZE="100" minlength="5" maxlength="42" /><br/><br/>
-        
-        Story title : <br/><INPUT TYPE="text" NAME="title" SIZE="100" minlength="5" maxlength="60" /><br/><br/>
-        
-        Story tagline : <br/><INPUT TYPE="text" NAME="tagline" SIZE="100" minlength="5" maxlength="90"/><br/><br/>
-        
-        Story free text search : <br/><INPUT required TYPE="text" NAME="storybody" SIZE="100" minlength="5" maxlength="90"/><br/><br/>
-        
-        Story from date :&nbsp;&nbsp;<INPUT TYPE="date" NAME="fromdate"/> mm/dd/yyyy<br/><br/>
-        
-        Story to date :&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<INPUT TYPE="date" NAME="todate"/> mm/dd/yyyy<br/><br/>
-        
-        Story category :&nbsp;&nbsp;&nbsp;<select name="category" id="category"><option value="HORROR_FICTION">Horror fiction</option><option value="NET_CLASSICS">Net 
-        Classic Works</option><option value="OLD_CLASSICS">Old Classic Works</option><option value="ROMANCE">Romance</option><option value="SCIENCE_FICTION">Science fiction</option><option value="TRAGEDY">Tragedy</option></select><br /><br/>
-        
-        Story language :&nbsp;&nbsp;<select name="language" id="language"><option value="ENGLISH">English</option><option value="FRENCH">French</option><option value="GERMAN">German</option><option value="ITALIAN">Italian</option><option value="RUSSIAN">Russian</option><option value="SPANISH">Spanish</option></select><br/><br/>
-
-        Rated at least :&nbsp;&nbsp;&nbsp;&nbsp;
-        <select name="rating" id="rating">
-          <option value="1">1 Star</option>
-          <option value="2">2 Stars</option>
-          <option value="3">3 Stars</option>
-          <option value="4">4 Stars</option>
-          <option value="5">5 Stars</option>
-        </select><br /><br />
-        
-
-        <button type="submit" name="search_story_button" value="search_story">Search Stories</button><br/><br/>
-      </h2>
-
-    </form>
-  </div>
-</body>
-
-</html>
+abs(p1-p2) < 100
 */
