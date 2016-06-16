@@ -28,6 +28,7 @@ namespace FetlitCGI
 
         private static string htmlRoot = "localhost";
         private static string htmlAction = "articleread.exe";
+        private static string ALL_CATEGORIES = "ALL_CATEGORIES"; // This is a catch-all story category which will retrieve all categories
 
         private static string newStoryHash = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(System.Web.Security.Membership.GeneratePassword(32, 0))).Replace("=", "").Replace("+", "").Replace("/", "");
 
@@ -560,7 +561,7 @@ namespace FetlitCGI
 
         private static Dictionary<string,string> getCategories()
         {
-            string sql = "select code_short_name,code_long_name from system_control_codes where code_group = 'CATEGORY'";
+            string sql = "select code_short_name,code_long_name from system_control_codes where code_group = 'CATEGORY' and code_short_name <> '" + ALL_CATEGORIES + "'";
             Dictionary<string, string> dictCategories = new Dictionary<string,string>();
             using (OracleConnection oracleConnection = new OracleConnection())
             {
@@ -599,16 +600,20 @@ namespace FetlitCGI
         private static string getStoryListByType(OracleCommand command2, string timespan, string code_short_name)
         {
             string story_list = "";
+            string sql2 = "";
 
-            string sql2 = "select * from (select story_id,  user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall, story_rating_plot, story_rating_grammar, story_rating_style, story_words, read_counter, (select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where story_category_01 = '{0}' {1}) where ROWNUM <= {2}";
+            if (code_short_name.CompareTo(ALL_CATEGORIES) == 0)
+                sql2 = "select * from (select story_id,  user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall, story_rating_plot, story_rating_grammar, story_rating_style, story_words, read_counter, (select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where 1=1 {1}) where ROWNUM <= {2}";
+            else
+                sql2 = "select * from (select story_id,  user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall, story_rating_plot, story_rating_grammar, story_rating_style, story_words, read_counter, (select count(*) from comments c where LENGTH(comment_text) > 3 and c.story_id = s.story_id) as comment_counter from stories s where story_category_01 = '{0}' {1}) where ROWNUM <= {2}";
 
-            string fob   = " AND created_date >= TO_DATE(SYSDATE,'DD-MON-YYYY') order by created_date desc";
-            string day   = " AND created_date BETWEEN TO_DATE(SYSDATE-2,'DD-MON-YYYY') AND TO_DATE(SYSDATE,'DD-MON-YYYY') order by created_date";
-            string week  = " AND created_date BETWEEN TO_DATE(SYSDATE-7,'DD-MON-YYYY') AND TO_DATE(SYSDATE,'DD-MON-YYYY') order by created_date";
-            string month = " AND created_date BETWEEN TO_DATE(SYSDATE-30,'DD-MON-YYYY') AND TO_DATE(SYSDATE,'DD-MON-YYYY') order by story_rating_overall desc";
-            string year  = " AND created_date BETWEEN TO_DATE(SYSDATE-365,'DD-MON-YYYY') AND TO_DATE(SYSDATE,'DD-MON-YYYY') order by story_rating_overall desc";
-            string ever  = " order by story_rating_overall desc";
-            string rand  = " order by rowid";
+            string fob = " AND created_date >= SYSDATE-1 order by created_date desc";
+            string day = " AND created_date BETWEEN to_date(to_char(SYSDATE-2,'DDMONYYYY'),'DDMONYYYY') AND to_date(to_char(SYSDATE-1,'DDMONYYYY'),'DDMONYYYY') order by created_date";
+            string week = " AND created_date BETWEEN to_date(to_char(SYSDATE-7,'DDMONYYYY'),'DDMONYYYY') AND to_date(to_char(SYSDATE-1,'DDMONYYYY'),'DDMONYYYY') order by created_date";
+            string month = " AND created_date BETWEEN to_date(to_char(SYSDATE-30,'DDMONYYYY'),'DDMONYYYY') AND to_date(to_char(SYSDATE-1,'DDMONYYYY'),'DDMONYYYY') order by story_rating_overall desc";
+            string year = " AND created_date BETWEEN to_date(to_char(SYSDATE-365,'DDMONYYYY'),'DDMONYYYY') AND to_date(to_char(SYSDATE-1,'DDMONYYYY'),'DDMONYYYY') order by story_rating_overall desc";
+            string ever = " order by story_rating_overall desc";
+            string rand = " order by rowid";
 
             if (timespan.CompareTo("FOB") == 0) command2.CommandText = String.Format(sql2, code_short_name, fob, max_num_stories);
             else if (timespan.CompareTo("DAY") == 0) command2.CommandText = String.Format(sql2, code_short_name, day, max_num_stories);
@@ -623,6 +628,8 @@ namespace FetlitCGI
             //command2.CommandText = "select story_id, user_alias, story_name, story_summary, to_char(created_date,'DD-MON-YYYY') as created_date, story_rating_overall from stories where rownum < 3";
 
             //Console.WriteLine(command2.CommandText);
+
+            logError("INFO", command2.CommandText);
 
             OracleDataReader oracleDataReader2 = command2.ExecuteReader();
 
@@ -1003,7 +1010,7 @@ namespace FetlitCGI
 
                             storytable += tabordion_h_div;
 
-                            storytable += String.Format(tabordion_h_section, category_counter, 1, "FOB", "") + tabordion_table_header;
+                            storytable += String.Format(tabordion_h_section, category_counter, 1, "FOB", (category_counter == 1) ? "checked" : "") + tabordion_table_header;
                             storytable += getStoryListByType(command2, "FOB", code_short_name) + tabordion_table_close;
                             storytable += String.Format(tabordion_h_section, category_counter, 2, "DAY","") + tabordion_table_header;
                             storytable += getStoryListByType(command2, "DAY", code_short_name) + tabordion_table_close;
@@ -1013,7 +1020,7 @@ namespace FetlitCGI
                             storytable += getStoryListByType(command2, "MONTH", code_short_name) + tabordion_table_close;
                             storytable += String.Format(tabordion_h_section, category_counter, 5, "YEAR", "") + tabordion_table_header;
                             storytable += getStoryListByType(command2, "YEAR", code_short_name) + tabordion_table_close;
-                            storytable += String.Format(tabordion_h_section, category_counter, 6, "EVER", (category_counter == 1) ? "checked" : "") + tabordion_table_header;
+                            storytable += String.Format(tabordion_h_section, category_counter, 6, "EVER", "") + tabordion_table_header;
                             storytable += getStoryListByType(command2, "EVER", code_short_name) + tabordion_table_close;
                             storytable += String.Format(tabordion_h_section, category_counter, 7, "RANDOM", "") + tabordion_table_header;
                             storytable += getStoryListByType(command2, "RANDOM", code_short_name) + tabordion_table_close;
