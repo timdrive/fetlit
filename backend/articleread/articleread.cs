@@ -22,7 +22,7 @@ namespace FetlitCGI
         [DllImport("kernel32", SetLastError = true)]
         static extern int SetConsoleMode(int hConsoleHandle, int dwMode);
 
-        private static int max_post_length = 5000000; // max length of posted text in bytes
+        private static int max_post_length = 10000000; // max length of posted text in bytes
         private static int max_con_timeout = 100; // max timeout of the connection milliseconds
         private static int max_num_stories = 10; // max number of stories per category to display
 
@@ -1686,11 +1686,28 @@ namespace FetlitCGI
             //head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
             //head += "<span onclick=\"post_story_banner.submit()\">";
 
+            head += "<form name=\"post_story_banner\" action=\"" + htmlAction + "\" method=\"post\">";
+            head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
+            head += "<span onclick=\"post_story_banner.submit()\">";
+
+            head += "<a href=\"http://" + htmlRoot + "\"><span></span></a>";
+            head += String.Format("<h1>{0}</h1>", htmlTitle);
+            head += "</span>";
+            head += "</form>";
+            head += "</div>";
+            head += "</div>";
+
+            head += "<div class=\"tiles clearfix\">";
+            head += "<div class=\"w4 h3\">";
+            //head += "<form name=\"post_story_banner\" action=\""+htmlAction+"\" method=\"post\">";
+            //head += "<input name=\"post_story_button\" type=\"hidden\" value=\"post_story\">";
+            //head += "<span onclick=\"post_story_banner.submit()\">";
+
             head += "<form name=\"search_story_banner\" action=\"" + htmlAction + "\" method=\"post\">";
             head += "<input name=\"search_story_button\" type=\"hidden\" value=\"search_story\">";
             head += "<span onclick=\"search_story_banner.submit()\">";
 
-            head += "<a href=\"http://"+htmlRoot+"\"><span></span></a>";
+            head += "<a href=\"http://" + htmlRoot + "\"><span></span></a>";
             head += String.Format("<h1>{0}</h1>", htmlTitle);
             head += "</span>";
             head += "</form>";
@@ -1797,7 +1814,7 @@ namespace FetlitCGI
             Console.Write("<textarea name=\"summary\" id=\"summary\" cols=\"100\" rows=\"10\" maxlength=\"1000\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStorySummary);
 
             Console.Write("Story text (at least about 10,000 words and at most about 200,000 words): <br/>");
-            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"5000000\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStoryCleanBody);
+            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\""+max_post_length+"\" placeholder=\"{0}\"></textarea><br/><br/>", htmlStoryCleanBody);
 
             Console.Write("By posting Your Content on this public Platform,");
             Console.Write("You are granting fetlit a limited, royalty-free,<br/>");
@@ -2050,7 +2067,7 @@ namespace FetlitCGI
             Console.Write("<textarea name=\"summary\" id=\"summary\" cols=\"100\" rows=\"10\" maxlength=\"1000\">{0}</textarea><br/><br/>", htmlStorySummary);
 
             Console.Write("Story text (at least about 10,000 words and at most about 200,000 words): <br/>");
-            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\"5000000\">{0}</textarea><br/><br/>", htmlStoryCleanBody); // htmlStoryPostBody); //htmlStoryCleanBody);// htmlStoryRenderedBody);
+            Console.Write("<textarea name=\"content\" id=\"content\" cols=\"100\" rows=\"30\" maxlength=\""+max_post_length+"\">{0}</textarea><br/><br/>", htmlStoryCleanBody); // htmlStoryPostBody); //htmlStoryCleanBody);// htmlStoryRenderedBody);
 
             Console.Write("By posting Your Content on this public Platform,");
             Console.Write("You are granting fetlit a limited, royalty-free,<br/>");
